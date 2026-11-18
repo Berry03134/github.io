@@ -22,6 +22,7 @@
     <a href="#foldmark" data-nav="foldmark">FOLD MARK</a>
     <a href="#streetfold" data-nav="streetfold">STREET FOLD</a>
     <a href="#system" data-nav="system">작동 구조</a>
+    <a href="#play" data-nav="play">체험</a>
     <a href="#spec" data-nav="spec">크기·소재</a>
   </nav>
   <a class="pp-back" href="../index.html#select">거리로 돌아가기 <span aria-hidden="true">↗</span></a>
@@ -38,6 +39,7 @@
       <canvas class="pp-bokeh" data-bokeh aria-hidden="true"></canvas>
       <div class="pp-film-streak" aria-hidden="true"></div>
       <div class="pp-film-big" id="ppBig" aria-hidden="true"></div>
+      <div class="pp-film-video" id="ppVideo" aria-hidden="true"></div>
       <div class="pp-film-3d" data-stage="film" aria-label="FOLD MARK 와 STREET FOLD 를 쓰는 장면"></div>
       <div class="pp-lens" id="ppLens" aria-hidden="true"></div>
       <div class="pp-film-title" id="ppFilmTitle">
@@ -193,10 +195,24 @@
     </div>
   </section>
 
+  <!-- v6 체험: 세 사람의 입장에서 해 보는 미니 게임 (game 폴더) -->
+  <section class="pp-play night" id="play" data-sec="play">
+    <header class="pp-sec-hd">
+      <p class="pp-eyebrow">04 — PLAY · 체험 게임</p>
+      <h2 class="pp-h2">직접 겪어 보는 명동의 밤.<br><span class="dim">같은 거리를 세 사람의 입장에서.</span></h2>
+    </header>
+    <div class="pp-play-cards">
+      <a class="pp-play-card" href="./game/index.html?pick=vendor&amp;back=..%2Findex.html%23play"><figure class="pp-play-shot"><img src="./assets/images/game-vendor.webp" alt="사장님 게임 화면: 그릴과 꼬치" loading="lazy"><b>▶ 체험 게임</b></figure><i>01</i><h3>사장님</h3><p class="sub">1인칭 · 3분</p><p>주문을 받고, 닭꼬치를 굽고, FOLD MARK 스티커를 붙여 건넵니다.</p><span>해 보기 ↗</span></a>
+      <a class="pp-play-card" href="./game/index.html?pick=customer&amp;back=..%2Findex.html%23play"><figure class="pp-play-shot"><img src="./assets/images/game-customer.webp" alt="손님 게임 화면: 닭꼬치를 들고 걷는 거리" loading="lazy"><b>▶ 체험 게임</b></figure><i>02</i><h3>손님</h3><p class="sub">3인칭 · 3분</p><p>닭꼬치를 지키며 인파를 뚫고, 트레이를 올려 먹을 STREET FOLD를 찾아갑니다.</p><span>해 보기 ↗</span></a>
+      <a class="pp-play-card" href="./game/index.html?pick=cleaner&amp;back=..%2Findex.html%23play"><figure class="pp-play-shot"><img src="./assets/images/game-cleaner.webp" alt="환경미화원 게임 화면: 전동 수거차" loading="lazy"><b>▶ 체험 게임</b></figure><i>03</i><h3>환경미화원</h3><p class="sub">3인칭 · 3분</p><p>전동 수거차로 쓰레기를 줍고, STREET FOLD를 들르고, 무단투기범을 잡습니다.</p><span>해 보기 ↗</span></a>
+    </div>
+    <p class="pp-play-note">키보드와 마우스로 진행합니다 · 처음 열 때 거리와 사람을 불러오느라 몇 초 걸립니다 · 게임 안에서 ESC 로 멈춤</p>
+  </section>
+
   <!-- 07 크기와 소재 -->
   <section class="pp-spec" id="spec" data-sec="spec">
     <header class="pp-sec-hd">
-      <p class="pp-eyebrow">04 — SPECS</p>
+      <p class="pp-eyebrow">05 — SPECS</p>
       <h2 class="pp-h2">거리에서 오래 쓰도록.</h2>
     </header>
     <div class="pp-spec-grid">
@@ -243,6 +259,7 @@
 <script src="../js/models/streetfold.js"></script>
 <script src="../js/models/foldmark.js"></script>
 <script src="./js/hand.js"></script>
+<script src="./js/film-cuts.js"></script>
 <script src="./js/product.js"></script>
 </body>
 </html>

@@ -10,6 +10,44 @@
    ========================================================= */
 (function () {
   "use strict";
+  /* ---------- v6: 첫 시나리오 실사 영상 (js/film-cuts.js 목록) — 스크롤 위치에 맞춰 앞뒤로 재생 ---------- */
+  var FILMV = (function () {
+    var cuts = (window.PP_FILM_CUTS || []).filter(function (c) { return c && c.src; }), box = null, made = false, FADE = .012;
+    function make() {
+      made = true; box = document.getElementById("ppVideo"); if (!box) return;
+      cuts.forEach(function (c, i) {
+        var v = document.createElement("video"); v.muted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = i < 2 ? "auto" : "metadata";
+        if (c.poster) v.poster = c.poster; v.src = c.src; v.className = "pp-cut"; box.appendChild(v); c.v = v; c.want = -1;
+        v.addEventListener("seeked", function () { c.busy = false; }); v.addEventListener("loadeddata", function () { c.ok = true; });
+      });
+    }
+    function nextOf(c) { return cuts.filter(function (d) { return Math.abs(d.a - c.b) < 1e-4; })[0]; }
+    function prevOf(c) { return cuts.filter(function (d) { return Math.abs(d.b - c.a) < 1e-4; })[0]; }
+    return {
+      update: function (p, host) {
+        if (!cuts.length) return false;
+        if (!made) make(); if (!box) return false;
+        var full = false;
+        cuts.forEach(function (c, i) {
+          var on = p >= c.a - FADE && p < c.b + FADE, op = 0;
+          if (on) {
+            op = 1;
+            if (!prevOf(c) && c.a > 0) op = Math.min(op, (p - (c.a - FADE)) / (FADE * 2));     // 앞이 3D 면 서서히 나타남
+            if (!nextOf(c) && c.b < 1) op = Math.min(op, ((c.b + FADE) - p) / (FADE * 2));     // 뒤가 3D 면 서서히 사라짐
+            op = Math.max(0, Math.min(1, op)); if (op >= .999 && p >= c.a && p < c.b) full = true;
+            var k = Math.max(0, Math.min(1, (p - c.a) / (c.b - c.a))), t = c.from + (c.to - c.from) * k, v = c.v;
+            if (v.preload !== "auto") v.preload = "auto";
+            if (v.readyState >= 1 && !c.busy && Math.abs(v.currentTime - t) > 1 / 30) { c.busy = true; try { v.currentTime = t; } catch (e) { c.busy = false; } }
+            var nx = cuts[i + 1]; if (nx && nx.v.preload !== "auto") nx.v.preload = "auto";
+          }
+          c.v.style.opacity = op.toFixed(3); c.v.style.visibility = op > 0 ? "visible" : "hidden";
+        });
+        if (host) host.style.opacity = full ? "0" : "";
+        return full;
+      }
+    };
+  })();
+
   var doc = document, T = window.THREE, TXT = window.MD_CONTENT;
   var reduced = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   function $(s, r) { return (r || doc).querySelector(s); }
@@ -276,7 +314,7 @@
     } catch (e) { return; }
     E.r = r;
     r.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); r.outputColorSpace = T.SRGBColorSpace;
-    r.toneMapping = T.NeutralToneMapping || T.ACESFilmicToneMapping; r.toneMappingExposure = 1;
+    r.toneMapping = T.ACESFilmicToneMapping; r.toneMappingExposure = 1.08;   // v6: 명암 대비를 살려 실제 사진처럼
     r.shadowMap.enabled = true; r.shadowMap.type = T.PCFShadowMap; r.setClearColor(0x000000, 0);
     r.domElement.setAttribute("tabindex", "-1");
 
@@ -544,6 +582,11 @@
       var gm = new T.Mesh(new T.PlaneGeometry(30, 30), new T.ShadowMaterial({ opacity: op || .2 })); gm.rotation.x = -Math.PI / 2; gm.receiveShadow = true; sc.add(gm);
       if (blob) { var b = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshBasicMaterial({ map: BLOB, transparent: true, depthWrite: false, opacity: blob })); b.rotation.x = -Math.PI / 2; b.position.y = .0008; sc.add(b); }
     }
+    // v6: 뒤쪽 가장자리 빛(윤곽) + 아래에서 살짝 받쳐 주는 반사광 → 실제 촬영 조명처럼 명암이 또렷하게
+    function realLight(sc, size) {
+      var rim = new T.DirectionalLight(0xEAF0FF, 1.25); rim.position.set(1.2 * size, 1.1 * size, -1.6 * size); sc.add(rim);
+      var bounce = new T.HemisphereLight(0xffffff, 0x8a7e66, .22); sc.add(bounce);
+    }
     function keyLight(sc, col, inten, pos, size, target) {
       var L = new T.DirectionalLight(col, inten); L.position.copy(pos); L.castShadow = true;
       L.shadow.mapSize.set(2048, 2048); var c = L.shadow.camera; c.left = -size; c.right = size; c.top = size; c.bottom = -size; c.near = .1; c.far = 20;
@@ -742,6 +785,7 @@
       var qM = new T.MeshBasicMaterial({ transparent: true, blending: T.CustomBlending, blendSrc: T.OneFactor, blendDst: T.OneMinusSrcAlphaFactor, depthTest: false, depthWrite: false });
       qSc.add(new T.Mesh(new T.PlaneGeometry(2, 2), qM));
       S.render = function (r) {
+        if (S.videoOn) return;
         var k = S.blurK, kq = k < 1.2 ? 1 : k < 3 ? 2 : k < 6 ? 4 : 8;
         if (kq === 1) { cam.layers.enableAll(); r.render(sc, cam); return; }
         var sz = r.getDrawingBufferSize(new T.Vector2()), w = Math.max(8, Math.round(sz.x / kq / 2)), h = Math.max(8, Math.round(sz.y / kq / 2));
@@ -758,7 +802,11 @@
 
       S.update = function (dt, t) {
         if (!S.sf || !S.fm) return;
-        var r0 = sec.getBoundingClientRect(), p = forceP != null ? forceP : clamp(-r0.top / Math.max(1, r0.height - innerHeight), 0, 1); S.p = p;
+        var r0 = sec.getBoundingClientRect(), tgt = forceP != null ? forceP : clamp(-r0.top / Math.max(1, r0.height - innerHeight), 0, 1);
+        // v6: 휠 한 번에 장면이 툭 넘어가지 않게, 스크롤 위치를 부드럽게 따라감
+        if (S.ps == null || forceP != null || Math.abs(tgt - S.ps) > .25) S.ps = tgt; else S.ps += (tgt - S.ps) * (1 - Math.exp(-dt * 3.2));
+        var p = S.ps; S.p = p;
+        S.videoOn = FILMV.update(p, host);       // v6: 실사 영상이 있는 컷은 영상으로 (3D 는 쉬게 함)
         var W = S.w || 1, Hh = S.h || 1, asp = W / Hh, narrow = asp < 1.25;
         cam.fov = clamp(30 * Math.pow(1.6 / asp, .8), 30, 60); cam.updateProjectionMatrix();
         var m = S.sf, fm = S.fm;
@@ -854,10 +902,10 @@
     /* ---------------- 무대 2: FOLD MARK 4단계 ---------------- */
     function stageFmSteps(host) {
       var sc = new T.Scene(), cam = new T.PerspectiveCamera(26, 1, .01, 20), S = { host: host, sc: sc, cam: cam, step: 0, tt: 0 };
-      sc.environment = ENV_DAY; sc.environmentIntensity = 1;
-      keyLight(sc, 0xFFF4E2, 2.2, new T.Vector3(-.6, 1.4, .9), .35);
-      var fill = new T.DirectionalLight(0xDDE6FF, .6); fill.position.set(1, .6, -1); sc.add(fill);
-      ground(sc, .5, .4, .22, .55);
+      sc.environment = ENV_DAY; sc.environmentIntensity = .7;
+      keyLight(sc, 0xFFF1DC, 3.1, new T.Vector3(-.6, 1.4, .9), .35);
+      var fill = new T.DirectionalLight(0xDDE6FF, .32); fill.position.set(1, .6, -1); sc.add(fill); realLight(sc, .35);
+      ground(sc, .5, .4, .34, .8);
       var O = new Orbit({ yaw: .55, pitch: .42, dist: .62, t: [0, .03, 0], min: .18, max: 1.6 });
       var VIEWS = [
         { yaw: .3, pitch: .95, dist: .46, t: [.014, .03, 0] },     // 주먹 홈 (아이보리 윗면의 움푹한 곳)
@@ -884,10 +932,10 @@
     function paintSig(k) { sigBs.forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-sig") === k); }); }
     function stageFmStudio(host) {
       var sc = new T.Scene(), cam = new T.PerspectiveCamera(24, 1, .01, 20), S = { host: host, sc: sc, cam: cam, interactive: true };
-      sc.environment = ENV_DAY; sc.environmentIntensity = 1;
-      keyLight(sc, 0xFFF4E2, 2.3, new T.Vector3(-.7, 1.5, .9), .5);
-      var fill = new T.DirectionalLight(0xDDE6FF, .55); fill.position.set(1, .7, -1); sc.add(fill);
-      ground(sc, .55, .42, .22, .55);
+      sc.environment = ENV_DAY; sc.environmentIntensity = .7;
+      keyLight(sc, 0xFFF1DC, 3.2, new T.Vector3(-.7, 1.5, .9), .5);
+      var fill = new T.DirectionalLight(0xDDE6FF, .3); fill.position.set(1, .7, -1); sc.add(fill); realLight(sc, .4);
+      ground(sc, .55, .42, .34, .8);
       var O = new Orbit({ yaw: .55, pitch: .42, dist: .62, t: [.04, .045, 0], min: .16, max: 1.8, pmin: -.05, pmax: 1.35 });
       S.orbit = O;
       buildFM(function (m) { S.fm = m; sc.add(m.group); m.onSig = paintSig; });
@@ -936,10 +984,10 @@
     var pinsBox = $("#ppPins"), info = $("#ppInfo"), infoNo = $("#ppInfoNo"), infoT = $("#ppInfoT"), infoD = $("#ppInfoD"), infoAct = $("#ppInfoAct"), ovB = $("#ppOverview");
     function stageSF(host) {
       var sc = new T.Scene(), cam = new T.PerspectiveCamera(26, 1, .05, 40), S = { host: host, sc: sc, cam: cam, interactive: true, cur: null, pins: {} };
-      sc.environment = ENV_DAY; sc.environmentIntensity = 1;
-      keyLight(sc, 0xFFF4E2, 2.4, new T.Vector3(-2.2, 4, 3), 1.6, new T.Vector3(0, 1, 0));
-      var fill = new T.DirectionalLight(0xDDE6FF, .5); fill.position.set(2.5, 2, -2); sc.add(fill);
-      ground(sc, 1.2, .9, .2, .55);
+      sc.environment = ENV_DAY; sc.environmentIntensity = .72;
+      keyLight(sc, 0xFFF1DC, 3.3, new T.Vector3(-2.2, 4, 3), 1.6, new T.Vector3(0, 1, 0));
+      var fill = new T.DirectionalLight(0xDDE6FF, .28); fill.position.set(2.5, 2, -2); sc.add(fill); realLight(sc, 1.6);
+      ground(sc, 1.2, .9, .32, .8);
       var HOME = { yaw: .5, pitch: .1, dist: 5.4, t: [0, 1.05, 0] };
       var O = new Orbit({ yaw: HOME.yaw, pitch: HOME.pitch, dist: HOME.dist, t: HOME.t, min: .6, max: 8, pmin: -.1, pmax: 1.1 }); O.wide = .5;
       S.orbit = O;

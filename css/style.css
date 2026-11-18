@@ -603,3 +603,8 @@ html.is-locked, html.is-locked body { overscroll-behavior: none; }
 .sel-mk.is-hot { scale: 1; box-shadow: 0 0 0 4px rgba(242, 217, 75, .35), 0 10px 24px -12px rgba(0, 0, 0, .5); z-index: 5; }
 .sel-mk.is-hot .go, .sel-mk .go { display: none; }
 .sel-mk { transition: background var(--t-hover), color var(--t-hover), box-shadow .3s var(--ease-out); }
+
+/* v6: 3D 릴레이 구간 사이 어둡게 닫힘 / 준비 중 */
+.r3d-dim { position: absolute; inset: 0; z-index: 3; background: #E9E6DD; opacity: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.r3d-dim span { color: #61645D; font-size: 14px; letter-spacing: .08em; opacity: 0; transition: opacity .3s; }
+.r3d-dim.is-wait span { opacity: .85; }

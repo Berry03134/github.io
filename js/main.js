@@ -179,13 +179,13 @@
   var relayGeo = { S: 1, X0: 0, top: 0 };
   // 릴레이 01 은 실제 3D (노점 → 골목 테이블) 라서 조금 더 길게
   // 릴레이 보기 방식: 기본은 2D 실루엣, 원하면 3D (선택은 이 브라우저에 기억)
-  var RELAY_MODE = "2d";
-  try { if (localStorage.getItem("md_relay") === "3d") RELAY_MODE = "3d"; } catch (e) {}
+  var RELAY_MODE = "3d";   // v6: 기본은 3D (2D 를 고르면 기억)
+  try { if (localStorage.getItem("md_relay") === "2d") RELAY_MODE = "2d"; } catch (e) {}
   function relay3dCan() { return !reduced && !window.MD_LITE && !!window.THREE && !!window.City3D; }
   function relay3dOn() { return RELAY_MODE === "3d" && relay3dCan(); }
   // v4.5: 구간 순서 01 FLOWAY · 02 STAY-GAP · 03 FOLD MARK → STREET FOLD · 04 NAVIAR — 3D 를 고르면 03 구간이 길어짐
   var SF_SEG = 2;
-  function relayLens() { var per = CFG.scroll.relayPerPerson, L = [per, per, per, per]; if (relay3dOn()) L[SF_SEG] = CFG.scroll.relayFirst || 6; return L; }
+  function relayLens() { var on3 = relay3dOn(), per = on3 ? (CFG.scroll.relay3dPer || 6) : CFG.scroll.relayPerPerson, L = [per, per, per, per]; if (on3) L[SF_SEG] = CFG.scroll.relayFirst || 6; return L; }
   function relayTotal() { return relayLens().reduce(function (a, b) { return a + b; }, 0); }
   function relayLen0() { return relayLens()[SF_SEG]; }
   function relayU(s) {   // 스크롤 → 구간 (0~4)
@@ -194,6 +194,7 @@
     for (var k = 0; k < 4; k++) { if (x < L[k] || k === 3) return clamp(k + x / L[k], 0, 4); x -= L[k]; }
     return 4;
   }
+  scenes.C.screens = CFG.scroll.relayIntro + relayTotal();   // v6: 기본이 3D 라서, 3D 길이로 다시 계산
   var lastW = -1;
   (function () {
     var box = $("rMode"); if (!box) return;
@@ -421,8 +422,13 @@
     var s = p * (intro + relayTotal());
     var u = relayU(s);
     var i = Math.min(3, Math.floor(u)), fr = u - i;
-    var use3d = relay3dOn() && C3D.init() && (i === SF_SEG ? C3D.relayReady : (C3D.teamReady && C3D.teamReady()));
-    var e = i < 3 ? inOut(seg(fr, use3d || relay3dOn() ? 0.88 : 0.6, 1)) : 0;
+    var mode3 = relay3dOn() && C3D.init();
+    // v6: 3D 를 고르면 구간 사이에 2D 그림이 끼어들지 않게 — 한 구간이 끝나면 어둡게 잠깐 닫혔다가 다음 3D 장면이 열림
+    var TR = 0.9, cur = i, uu = fr, dip = 0;
+    if (mode3 && i < 3 && fr > TR) { var k = (fr - TR) / (1 - TR); if (k < .5) { dip = k * 2; uu = 1; } else { cur = i + 1; uu = 0; dip = (1 - k) * 2; } }
+    var ready3 = function (q) { return q === SF_SEG ? C3D.relayReady : (C3D.teamReady && C3D.teamReady()); };
+    var use3d = mode3 && ready3(cur);
+    var e = i < 3 ? inOut(seg(fr, mode3 ? 0.88 : 0.6, 1)) : 0;
     var camX = (i + e) * R.seg;
     var S = relayGeo.S, X0 = relayGeo.X0, top = relayGeo.top;
 
@@ -548,18 +554,24 @@
     setT(C.baton, "translate3d(" + fx.toFixed(1) + "px," + (fy - bo * 0.22 * vh - 0.12 * vh).toFixed(1) + "px,0) scale(" + (0.6 + 0.6 * bo).toFixed(3) + ")", bo.toFixed(3));
 
     /* 01: 실제 3D 장면 (노점의 FOLD MARK → 커플 → 골목의 STREET FOLD) */
-    if (use3d) {
-      C3D.attach(R3.el);
-      var u3 = clamp(fr / 0.86, 0, 1);
-      if (i === SF_SEG) C3D.relay(u3, 9000 + u3 * 900); else C3D.relayTeam(i, u3, 9000 + u3 * 900);
-      R3.el.style.opacity = (1 - seg(fr, 0.86, 0.97)).toFixed(3);
-      R3.on = true;
-      var behind = seg(fr, 0.86, 0.97);                     // 3D 가 보이는 동안 2D 초점 효과는 숨김
-      C.veil.style.opacity = (seg(s, 0.3, 0.8) * behind).toFixed(3); C.baton.style.opacity = (C.baton.style.opacity * behind).toFixed(3);
-    } else if (R3.on) { R3.el.style.opacity = 0; R3.on = false; }
+    if (mode3) {
+      // 3D 모드: 2D 무대(길 · 사람 그림 · 초점 · 바통)는 아예 숨김
+      C.track.style.visibility = C.bg.style.visibility = "hidden"; C.veil.style.opacity = 0; C.baton.style.opacity = 0;
+      C3D.attach(R3.el); R3.on = true;
+      if (use3d) {
+        var u3 = clamp(uu / TR, 0, 1);
+        if (cur === SF_SEG) C3D.relay(u3, 9000 + u3 * 900); else C3D.relayTeam(cur, u3, 9000 + u3 * 900);
+      }
+      R3.el.style.opacity = 1;
+      R3.dim = R3.dim || (function () { var d = doc.createElement("div"); d.className = "r3d-dim"; d.innerHTML = '<span>3D 장면을 준비하는 중…</span>'; R3.el.appendChild(d); return d; })();
+      var dimV = use3d ? dip : 1; R3.dim.style.opacity = dimV.toFixed(3); R3.dim.classList.toggle("is-wait", !use3d);
+    } else {
+      C.track.style.visibility = C.bg.style.visibility = "";
+      if (R3.on) { R3.el.style.opacity = 0; R3.on = false; }
+    }
 
     /* 영상 프레임이 준비된 제품이면 그 장면 위에 덮음 */
-    var sq = SEQ[i];
+    var sq = mode3 ? null : SEQ[i];
     if (sq) {
       var holdEnd = i < 3 ? 0.6 : 1, a2 = seg(fr, 0, holdEnd);
       var src = sq[Math.round(a2 * (sq.length - 1))];
@@ -923,6 +935,7 @@
   /* v5: 발표용 바로가기 — 주소 끝에 ?view=streetfold (또는 floway · staygap · naviar · relay · select · world) 를 붙이면 그 장면에서 시작. &mode=3d 를 더하면 3D 릴레이로 */
   function goView() {
     var m = /[?&]view=([a-z0-9-]+)/i.exec(location.search); if (!m) return;
+    layout(true);
     var md = /[?&]mode=(2d|3d)/i.exec(location.search), v = m[1].toLowerCase(), y = null;
     if (md && relay3dCan()) { var bt = doc.querySelector('[data-rmode="' + md[1].toLowerCase() + '"]'); if (bt) bt.click(); }
     var seg = { floway: 0, staygap: 1, "stay-gap": 1, streetfold: 2, "street-fold": 2, sf: 2, naviar: 3 }[v];
