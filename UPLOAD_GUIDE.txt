@@ -1,9 +1,0 @@
-GitHub 업로드 방법
-1. 이 ZIP을 먼저 압축 해제합니다. ZIP 자체를 업로드하지 마세요.
-2. MYEONGDONG_GITHUB 폴더 안의 index.html과 폴더들을 저장소 최상위에 업로드합니다.
-   최상위에서 index.html, PRODUCT01~04, assets, css, fonts, js가 보여야 합니다.
-3. 한 번에 업로드가 안 되면 폴더별로 나눠서 Add file > Upload files > Commit changes 합니다.
-   각 폴더 자체를 드래그해 경로를 유지하세요. 내부 파일만 흩어 올리면 안 됩니다.
-4. Settings > Pages > Source: Deploy from a branch > main > /(root) > Save.
-5. Pages 설정에 표시되는 주소로 접속합니다.
-기존 저장소를 쓸 경우 같은 경로에 덮어쓰세요. 처음에는 새 저장소에 올려 확인해도 됩니다.
