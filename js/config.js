@@ -25,9 +25,8 @@ window.MD_CONFIG = {
   /* 스크롤 길이 (화면 몇 장 분량인지) */
   scroll: {
     sceneA: 8,            // 인트로 → 시간 흐름 → 거리로 내려앉기
-    relayPerPerson: 4.4,  // 릴레이(2D): 한 사람(제품)당
-    relay3dPer: 7,        // 릴레이(3D): 한 사람(제품)당 — 휠 한 번에 너무 많이 넘어가지 않게 길게
-    relayFirst: 12,       // 릴레이 03 (실제 3D: 노점 → 커플 → 골목 테이블)
+    relayPerPerson: 3.2,  // 릴레이: 한 사람(제품)당
+    relayFirst: 6.5,      // 릴레이 01 (실제 3D: 노점 → 커플 → 골목 테이블)
     relayIntro: 0.6,      // 릴레이 시작 전 제목 구간
     sceneD: 4.2           // 도시 전체로
   },

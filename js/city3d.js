@@ -66,7 +66,7 @@
     var P = gg.attributes.position, N = gg.attributes.normal, U = gg.attributes.uv;
     for (var i = 0; i < P.count; i++) {
       this.p.push(P.getX(i), P.getY(i), P.getZ(i)); this.n.push(N.getX(i), N.getY(i), N.getZ(i));
-      this.c.push(col.r, col.g, col.b); if (this.keepUV && U) this.uv.push(U.getX(i), U.getY(i)); else this.uv.push(U ? 0.3 : 0.01, U ? 0.05 : 0.01);
+      this.c.push(col.r, col.g, col.b); this.uv.push(U ? 0.3 : 0.01, U ? 0.05 : 0.01);
     }
   };
   Builder.prototype.geometry = function () { return this.mesh(null).geometry; };
@@ -124,28 +124,7 @@
   var SIGN_COL = [["#C8262C", "#FFFFFF", "#F4C21B"], ["#F1BE12", "#1E1F21", "#C8262C"], ["#1F4E9E", "#FFFFFF", "#F1BE12"], ["#D6327A", "#FFFFFF", "#FFE3EF"],
                   ["#15804B", "#FFFFFF", "#F1BE12"], ["#E8761C", "#FFFFFF", "#1E1F21"], ["#FFFFFF", "#C8262C", "#C8262C"], ["#1B1C1E", "#F1BE12", "#F1BE12"],
                   ["#FFFFFF", "#1F4E9E", "#1F4E9E"], ["#6E2A86", "#FFFFFF", "#E8B9F2"], ["#0A9AAA", "#FFFFFF", "#FFFFFF"], ["#F4EEDF", "#1E1F21", "#C8262C"]];
-  var ATLAS_COLS = 16, ATLAS_ROWS = 4, CW = 128, CH = 512, SIDE_PX = 16, SIGNC = null;
-  /* v6: 배경 사진(게임 필요한 자료/배경 파일)에서 잘라 낸 실제 간판 · 광고를 그림 간판 사이사이에 덮어 그림 */
-  function photoSigns() {
-    var P = window.GM && GM.photo; if (!P || !P.V || !SIGNC) return;
-    var iv = new Image(), iff = new Image();
-    iv.onload = function () {
-      var g = SIGNC.g, r = rng(4242), cw = iv.width / P.V.cols, chh = iv.height / P.V.rows;
-      for (var row = 0; row < ATLAS_ROWS; row++) for (var col = 0; col < ATLAS_COLS; col++) {
-        if (r() > .55) continue;
-        var k = Math.floor(r() * P.V.n), sx = (k % P.V.cols) * cw, sy = Math.floor(k / P.V.cols) * chh, x = col * CW + 6, y = row * CH + 6;
-        g.drawImage(iv, sx, sy, cw, chh, x, y, CW - 12, CH - 12);
-        var sh = g.createLinearGradient(x, y, x + CW, y); sh.addColorStop(0, "rgba(255,255,255,.14)"); sh.addColorStop(.5, "rgba(255,255,255,0)"); sh.addColorStop(1, "rgba(0,0,0,.1)"); g.fillStyle = sh; g.fillRect(x, y, CW - 12, CH - 12);
-      }
-      SIGNC.t.needsUpdate = true;
-    };
-    iff.onload = function () {
-      var g = ads.g, AW = 256, AH = 640, cw = iff.width / P.F.cols, chh = iff.height / P.F.rows;
-      for (var i = 0; i < ads.n; i++) { if (i % 2) continue; var k = (i * 5 + 3) % P.F.n, sx = (k % P.F.cols) * cw, sy = Math.floor(k / P.F.cols) * chh, sw = chh * AW / AH; g.drawImage(iff, sx + (cw - sw) / 2, sy, sw, chh, i * AW, 0, AW, AH); }
-      if (ads.t) ads.t.needsUpdate = true;
-    };
-    iv.src = P.V.src; if (P.F) iff.src = P.F.src;
-  }
+  var ATLAS_COLS = 16, ATLAS_ROWS = 4, CW = 128, CH = 512, SIDE_PX = 16;
   var KFONT = "'Malgun Gothic', 'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', sans-serif";
   function signAtlas() {
     var c = document.createElement("canvas"); c.width = CW * ATLAS_COLS; c.height = CH * ATLAS_ROWS + SIDE_PX;
@@ -186,8 +165,7 @@
     }
     draw();
     var t = canvasTex(c);
-    api.redrawSigns = function () { draw(); t.needsUpdate = true; ads.redraw(); photoSigns(); };
-    SIGNC = { c: c, g: g, t: t };
+    api.redrawSigns = function () { draw(); t.needsUpdate = true; ads.redraw(); };
     return { tex: t };
   }
   /* 건물 벽 큰 광고판 (사진 속 세로 대형 광고 — 얼굴 없이 제품 · 글자 위주) */
@@ -215,7 +193,7 @@
     function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.fill(); }
     function shade(h, k) { var c2 = new T.Color(h); c2.offsetHSL(0, 0, k); return "#" + c2.getHexString(); }
     draw(); t = canvasTex(c);
-    return { tex: t, n: N, redraw: draw, c: c, g: g, get t() { return t; } };
+    return { tex: t, n: N, redraw: draw };
   })();
   /* 회색 돌 보도 (사진 속 명동 바닥) */
   function paveTex() {
@@ -582,16 +560,10 @@
      3D 모델 불러오기 (js/models/*.js → GLB)
      ========================================================= */
   var MODEL_NAMES = ["01_bld", "02_bld", "03_bld", "04_bld", "sign_01", "sign_02", "sign_03", "sign_04", "sign_05", "sign_06",
-                     "streetfold", "foldmark", "sticker", "kit_street", "tower",
-                     "floway", "staygap_1", "staygap_2", "staygap_3", "naviar"];   // v4.5 팀원 제품
-  if (window.MD_LITE) MODEL_NAMES = MODEL_NAMES.filter(function (n) { return /bld|sign|streetfold|kit_street|floway|staygap_1|naviar/.test(n); });   // 휴대폰용: 가볍게
+                     "streetfold", "foldmark", "rig_person_01", "rig_person_02", "rig_person_03", "rig_person_04", "rig_person_05", "sticker", "kit_street", "tower",
+                     "floway", "staygap_motion_v7", "staygap_rail_v7", "naviar"];   // v4.5 팀원 제품
+  if (window.MD_LITE) MODEL_NAMES = MODEL_NAMES.filter(function (n) { return /bld|sign|streetfold|kit_street|floway|staygap_motion_v7|staygap_rail_v7|naviar/.test(n); });   // 휴대폰용: 가볍게
   var MD = {}, MODELS_PARSED = false, loadStarted = false;
-  // 사람: 게임과 같은 Mixamo 뼈대 모델 (짙은 실루엣으로) — 예전 이름(person_01 ...)에 연결
-  var PEOPLE_MAP = { person_01: "character2", person_02: "remy", person_03: "character4", person_04: "ch07_nonpbr", person_05: "character1", person_06: "character3" };
-  var PEOPLE_FILES = ["character2", "remy", "character4", "ch07_nonpbr", "character1", "character3", "character5", "ch33",
-                      "skin/remy", "skin/ch07_nonpbr", "skin/character1", "skin/character2", "skin/character5"];   // skin = 제품을 쓰는 사람만 옷 그림까지
-  // 제품을 쓰는 사람 (원래 모델 · 색 그대로): 01·02 같은 남자 / 03 사장님 · 커플 / 04 환경미화원
-  var ACTORS = { tour: "remy", boss: "ch07_nonpbr", her: "character1", him: "character2", worker: "character5" };
   function b64buf(s) { var bin = atob(s), n = bin.length, u = new Uint8Array(n); for (var i = 0; i < n; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
   function loadModels() {
     if (loadStarted || !T.GLTFLoader) return; loadStarted = true;
@@ -605,14 +577,16 @@
       if (left === 0) done();
     }
     function done() { MODELS_PARSED = true; if (built) addModels(); }
-    var PEOPLE = (window.MD_LITE ? [] : ["anims"].concat(PEOPLE_FILES)).concat(["@photos", "@food"]), pi = 0;
     (function next() {
-      if (i >= MODEL_NAMES.length) {
-        if (pi < PEOPLE.length) { var pn = PEOPLE[pi++]; if (pn !== "anims" && window.GM && GM.chars && GM.chars[pn]) { next(); return; } var ps = document.createElement("script"); ps.src = pn.charAt(0) === "@" ? (window.MD_PHOTO_BASE || "./assets/photos/") + pn.slice(1) + ".js" : (window.MD_PEOPLE_BASE || "./assets/people/") + pn + ".js"; ps.onload = ps.onerror = function () { next(); }; document.head.appendChild(ps); return; }
-        parseAll(); return;
-      }
+      if (i >= MODEL_NAMES.length) { parseAll(); return; }
       var n = MODEL_NAMES[i++];
       if (store[n]) { next(); return; }
+      if (n === "staygap_motion_v7") {
+        var motionScript=document.createElement("script");
+        motionScript.src=(window.MD_MODEL_BASE || "./js/models/")+"../../PRODUCT03/js/rail-v7-data.js";
+        motionScript.onload=function(){store[n]=window.StaygapRailData;next();};motionScript.onerror=next;
+        document.head.appendChild(motionScript);return;
+      }
       var s = document.createElement("script"); s.src = (window.MD_MODEL_BASE || "./js/models/") + n + ".js"; s.onload = s.onerror = function () { next(); };
       document.head.appendChild(s);
     })();
@@ -855,11 +829,6 @@
     var gr = g.createRadialGradient(384, 896, 6, 384, 896, 128); gr.addColorStop(0, "#FFD27A"); gr.addColorStop(0.35, "#FF7A1E"); gr.addColorStop(0.7, "#8A1E0A"); gr.addColorStop(1, "#1A0A06");
     g.fillStyle = gr; g.fillRect(256, 768, 256, 256);
     for (var e = 0; e < 140; e++) { g.fillStyle = "rgba(255," + (120 + (e * 37) % 120) + ",40," + (0.25 + (e % 5) * 0.12) + ")"; g.fillRect(256 + (e * 53) % 256, 768 + (e * 97) % 256, 6, 4); }
-    // v6: 가격표 4장 (x 512~1024, y 768~1024)
-    [["닭꼬치", "4,000", "#F4C21B", "#C8242B"], ["양념", "4,500", "#C8242B", "#FFFFFF"], ["치즈", "5,000", "#FFFFFF", "#C8242B"], ["계좌이체", "OK", "#1E1F21", "#F4C21B"]].forEach(function (tg, i) {
-      var x = 512 + (i % 2) * 256, y = 768 + (i >> 1) * 128; g.fillStyle = tg[2]; g.fillRect(x + 4, y + 4, 248, 120); g.strokeStyle = tg[3]; g.lineWidth = 6; g.strokeRect(x + 10, y + 10, 236, 108);
-      g.fillStyle = tg[3]; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "900 34px " + KFONT; g.fillText(tg[0], x + 128, y + 44); g.font = "900 40px Pretendard, Arial, sans-serif"; g.fillText(tg[1], x + 128, y + 92);
-    });
     var t = canvasTex(c); return t;
   }
   // UV 구역 (캔버스 1024 기준, three 는 v 를 아래에서부터 셈)
@@ -867,8 +836,7 @@
   function uvSide(x0, y0, x1, y1) { return [[x1 / 1024, 1 - y1 / 1024], [x0 / 1024, 1 - y1 / 1024], [x0 / 1024, 1 - y0 / 1024], [x1 / 1024, 1 - y0 / 1024]]; }   // 옆면용 (글자가 뒤집히지 않게)
 
   function stallParts(hi) {
-    var B = { steel: new Builder(), stain: new Builder(), dark: new Builder(), wood: new Builder(), meat: new Builder(), onion: new Builder(), print: new Builder(), lamp: new Builder(), roof: new Builder(), coal: new Builder(), bulb: new Builder(), glass: new Builder() };
-    B.meat.keepUV = true; B.onion.keepUV = true;
+    var B = { steel: new Builder(), stain: new Builder(), dark: new Builder(), wood: new Builder(), meat: new Builder(), onion: new Builder(), print: new Builder(), lamp: new Builder(), roof: new Builder(), coal: new Builder(), bulb: new Builder() };
     var C = function (h) { return hex(h); };
     function bx(b, x, z, w, d, y0, y1, col, o) { B[b].box(x, z, w, d, y0, y1, 0, col, col, o || { ao: 0.9 }); }
     var L = 2.0, D = 0.9, top = STALL_TOP_M;
@@ -927,19 +895,7 @@
     bx("dark", 0, -D / 2, L + 0.04, 0.035, PH - 0.035, PH, C("#2B2D2F")); bx("dark", 0, D / 2, L + 0.04, 0.035, PH - 0.035, PH, C("#2B2D2F"));
     bx("dark", -L / 2, 0, 0.035, D, PH - 0.035, PH, C("#2B2D2F")); bx("dark", L / 2, 0, 0.035, D, PH - 0.035, PH, C("#2B2D2F"));
     bx("dark", 0, 0, L, 0.03, PH - 0.12, PH - 0.09, C("#2B2D2F"));                                  // 등 거는 가운데 봉
-    B.roof.box(0, 0.05, L + 0.24, D + 0.4, PH, PH + 0.025, 0, C("#C8262C"), C("#A51E22"), { ao: 1 });      // v6: 사진 속 노점처럼 빨간 천막 + 흰 테
-    B.roof.box(0, -D / 2 - 0.15, L + 0.26, 0.02, PH - 0.12, PH + 0.03, 0, C("#F4F0E6"), C("#F4F0E6"), { ao: 1 });
-    // v6: 유리 진열장 (손님 쪽 쟁반 위)
-    B.glass.box(-0.3, -0.26, 1.32, 0.34, top + 0.03, top + 0.27, 0, C("#DCEBF2"), C("#DCEBF2"), { ao: 1 });
-    bx("stain", -0.3, -0.26, 1.34, 0.36, top + 0.27, top + 0.285, C("#C9CCCB"));
-    // v6: 가격표 (앞 지붕 끝에 매달림)
-    for (var tg = 0; tg < 4; tg++) { var tx0 = -0.72 + tg * 0.48; B.print.box(tx0, -D / 2 - 0.13, 0.36, 0.008, PH - 0.66, PH - 0.43, 0, C("#FFFFFF"), C("#FFFFFF"), { ao: 1, faceUV: [uvSide(512 + (tg % 2) * 256, 768 + (tg >> 1) * 128, 768 + (tg % 2) * 256, 896 + (tg >> 1) * 128), null, null, null], faceCol: C("#FFFFFF"), sideUV: [0.3, 0.02] }); }
-    // v6: 소화기 · 가스통 · 플라스틱 상자 · 천막 끝 전구 줄
-    var ext = new T.CylinderGeometry(0.06, 0.06, 0.42, 12); ext.translate(L / 2 - 0.12, 0.21, -D / 2 - 0.12); B.lamp.addGeo(ext, C("#C8262C"));
-    var exh = new T.CylinderGeometry(0.02, 0.02, 0.08, 8); exh.translate(L / 2 - 0.12, 0.46, -D / 2 - 0.12); B.dark.addGeo(exh, C("#1A1A1A"));
-    var lpg = new T.CylinderGeometry(0.15, 0.15, 0.55, 14); lpg.translate(-L / 2 + 0.22, 0.28, D / 2 + 0.2); B.steel.addGeo(lpg, C("#8C9196"));
-    bx("lamp", L / 2 + 0.34, 0.12, 0.36, 0.5, 0, 0.3, C("#2A62C8")); bx("lamp", L / 2 + 0.34, 0.12, 0.36, 0.5, 0.3, 0.6, C("#E8B21E"));
-    for (var sb2 = 0; sb2 < 9; sb2++) { var sx2 = -L / 2 - 0.08 + sb2 * (L + 0.16) / 8, sag = Math.sin(sb2 / 8 * Math.PI) * 0.06, bu2 = new T.SphereGeometry(0.022, 8, 6); bu2.translate(sx2, PH - 0.05 - sag, -D / 2 - 0.2); B.bulb.addGeo(bu2, C("#FFE7B0")); }
+    B.roof.box(0, 0.05, L + 0.24, D + 0.4, PH, PH + 0.025, 0, C("#E7E3D8"), C("#BDB8AC"), { ao: 1 });
     // 앞 간판 (종류별로 따로 → sign 0~3) : 위쪽 손님 방향
     var sign = [];
     STALL_KIND.forEach(function (k, i) {
@@ -975,7 +931,6 @@
       roof: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: T.DoubleSide }),
       coal: new T.MeshBasicMaterial({ vertexColors: true, map: tex }),
       bulb: new T.MeshBasicMaterial({ vertexColors: true }),
-      glass: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false, envMapIntensity: 1.4 }),
       sign: new T.MeshStandardMaterial({ vertexColors: true, map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.5 })
     };
     return MATS.stall;
@@ -1035,19 +990,13 @@
       if (MD.streetfold) setupStreetFold(MD.streetfold.scene);
       // 4) FOLD MARK — 노점 상판 위
       if (MD.foldmark) setupFoldMark(MD.foldmark.scene);
-      // v6: 음식 사진 질감 (노점 꼬치) · 사진 간판 · 전구 감은 가로수
-      try { v6Extras(); } catch (e2) { if (window.console) console.warn("v6 extras", e2); }
       // 5) 사진 기반 사람 (뼈대를 코드로 심어 걷게 함)
-      var pv = ["person_01", "person_02", "person_03", "person_04", "person_05", "person_06", "person_07"];
-      PEOPLE_MAP.person_07 = "ch33";
-      var MXP = window.MDPeople && window.MDPeople.ready() ? window.MDPeople : null;
+      var pv = ["person_01", "person_02", "person_03", "person_04", "person_05"];
       pv.forEach(function (n, vi) {
         var hgt = 16.3 + (vi % 3) * 0.4;
-        if (MXP && MXP.has(PEOPLE_MAP[n])) RIGS[n] = MXP.template(PEOPLE_MAP[n], hgt, MATS.person || (MATS.person = silhouetteMat("#2E302C")));   // 관절이 제대로 잡힌 사람 (걷기 동작 포함)
-        else if (window.MD_RIGS && window.MD_RIGS[n]) RIGS[n] = makeRigCC(n, hgt);
+        if (window.MD_RIGS && window.MD_RIGS[n]) RIGS[n] = makeRigCC(n, hgt);          // AccuRIG 뼈대 (손·주머니 정리됨)
         else if (MD[n]) RIGS[n] = makeRig(MD[n].scene, hgt, n);
       });
-      if (MXP) Object.keys(ACTORS).forEach(function (k) { var nm = ACTORS[k]; if (MXP.has(nm)) RIGS["act_" + k] = MXP.template(nm, k === "her" || k === "boss" ? 15.9 : 16.6, MATS.person, true, k === "boss" ? { apron: 0xC42A22, hair: 0x221f1c } : null); });   // v8: 사장님 = 검은 머리 · 빨간 앞치마
       Object.keys(RIGS).forEach(function (n) {
         if (WALKERS.indexOf(n) < 0) return;
         for (var c = 0; c < 5; c++) { var r = cloneRig(RIGS[n]); r.root.visible = false; scene.add(r.root); POOL.push({ rig: r, model: n, agent: -1 }); }
@@ -1059,37 +1008,6 @@
     } catch (e) { if (window.console) console.warn("3D 모델을 넣는 중 문제:", e); }
   }
 
-  function v6Extras() {
-    var F = window.GM && GM.food;
-    if (F && F.texCooked && MATS.stall) {
-      var tl = new T.TextureLoader(), mt = tl.load(F.texCooked), ot = F.texOnion ? tl.load(F.texOnion) : null;
-      [mt, ot].forEach(function (t) { if (!t) return; t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; });
-      MATS.stall.meat.map = mt; MATS.stall.meat.needsUpdate = true;
-      if (ot) { MATS.stall.onion.map = ot; MATS.stall.onion.needsUpdate = true; }
-    }
-    photoSigns();
-    // 큰길 양쪽 가로수 (가지에 작은 전구) — 사진 속 명동 큰길
-    var main = ST[0], alleysX = [310, 537, 800, 1036, 1200, 1412], trunk = new T.MeshStandardMaterial({ color: 0x3a322b, roughness: 0.95 }), parts = [], bulbs = [], R = rng(31337), up = new T.Vector3(0, 1, 0), q = new T.Quaternion();
-    var tg = new T.CylinderGeometry(0.11 * M, 0.17 * M, 1, 7), bg2 = new T.CylinderGeometry(0.035 * M, 0.07 * M, 1, 5);
-    function limb(a, b, g) { var d = new T.Vector3().subVectors(b, a), l = d.length(); q.setFromUnitVectors(up, d.normalize()); var gg = g.clone(); gg.applyMatrix4(new T.Matrix4().compose(new T.Vector3().addVectors(a, b).multiplyScalar(0.5), q, new T.Vector3(1, l, 1))); parts.push(gg); }
-    [-1, 1].forEach(function (sd) {
-      for (var sAl = 70; sAl < 1680; sAl += 85 + R() * 30) {
-        var p = MAP.pointOn(main, sAl, sd * (main.w / 2 - 7)); if (alleysX.some(function (x) { return Math.abs(p[0] - x) < 42; })) continue;
-        var base = new T.Vector3(p[0], 0, p[1]), top = new T.Vector3(p[0] + (R() - .5) * 3, (3.8 + R()) * M, p[1] + (R() - .5) * 3);
-        limb(base, top, tg);
-        for (var b = 0; b < 6; b++) {
-          var an = R() * 6.28, a3 = top.clone().add(new T.Vector3(0, -R() * 1.1 * M, 0)), e3 = a3.clone().add(new T.Vector3(Math.cos(an) * (1.4 + R() * 1.4) * M, (0.9 + R() * 2) * M, Math.sin(an) * (1.4 + R() * 1.4) * M));
-          limb(a3, e3, bg2);
-          for (var k = 0; k < 22; k++) { var tt = R(), pp = a3.clone().lerp(e3, tt); pp.x += (R() - .5) * 1.3 * M * tt; pp.y += (R() - .5) * 0.9 * M * tt; pp.z += (R() - .5) * 1.3 * M * tt; bulbs.push(pp); }
-        }
-      }
-    });
-    if (parts.length && T.BufferGeometryUtils) { var mg = T.BufferGeometryUtils.mergeGeometries(parts.map(function (g) { ["uv"].forEach(function (k) { if (g.attributes[k]) g.deleteAttribute(k); }); return g; }), false); var tm = new T.Mesh(mg, trunk); tm.castShadow = true; tm.receiveShadow = true; scene.add(tm); GROUP.trees = tm; }
-    if (bulbs.length) {
-      var bm = new T.InstancedMesh(new T.SphereGeometry(0.035 * M, 5, 4), new T.MeshBasicMaterial({ color: new T.Color(2.4, 1.9, 1.0), toneMapped: false }), bulbs.length), mm = new T.Matrix4();
-      bulbs.forEach(function (pp, i) { mm.makeTranslation(pp.x, pp.y, pp.z); bm.setMatrixAt(i, mm); }); scene.add(bm); GROUP.treeBulbs = bm;
-    }
-  }
   /* ---------- STREET FOLD / FOLD MARK ---------- */
   // 판(위·아래·옆면·앞 테두리·고리 받침)과 가방 걸이: 판 높이(0.89~1.003 m) 앞쪽에 있는 '페인트 (6)' / '페인트 (7)' 조각 전부
   function sfBox(o) { return new T.Box3().setFromObject(o); }
@@ -1152,6 +1070,11 @@
     var w = new T.Group(); w.add(o); w.scale.setScalar(M * (/^staygap/.test(name) ? 420 / 258.1 : 1)); return w;
   }
   function faceIn(st, lat) { var sd = lat < 0 ? 1 : -1; return Math.atan2(sd * st.nx, sd * st.ny); }   // 보도에서 길 가운데를 봄
+  // Keep the street installation in metres, matching the posture drawings.
+  const seatScale = 384 / 280;
+  const axisHeight = upper => upper >= 610
+    ? .825 + (upper - 610) * (.225 / 125)
+    : .450 + (upper - 485) * (.375 / 125);
   function setupTeam() {
     var main = ST[0], a1 = ST[2], sp = MAP.spots;
     PROD.team = {};
@@ -1162,17 +1085,38 @@
     var poles = [[190, -44], [520, -44], [980, 44]];
     poles.forEach(function (pp, i) {
       var g = new T.Group(), p = MAP.pointOn(main, pp[0], pp[1]);
-      var states = i === 0 ? ["staygap_1", "staygap_2", "staygap_3"] : ["staygap_1"];
-      states.forEach(function (n, k) { var o = teamObj(n); if (!o) return; o.visible = k === 0; o.userData.state = k; g.add(o); });
-      var pole = new T.Mesh(new T.CylinderGeometry(0.244 * M, 0.244 * M, 5.4 * M, 24), new T.MeshStandardMaterial({ color: 0x3d3e39, roughness: 0.7 }));
-      pole.position.y = (1.8 * 420 / 258.1 + 2.7) * M - 0.02 * M; pole.castShadow = true; g.add(pole);
+      const source=MD.staygap_motion_v7;
+      if(!source)return;
+      const rig=source.scene.clone(true);
+      rig.rotation.y=Math.PI;
+      rig.position.z=.149*seatScale*M;
+      rig.scale.set(420/258.1*M,seatScale*M,seatScale*M);
+      const model=rig.getObjectByName("Staygap_mm_to_m");
+      const moving=new T.Group();
+      for(const child of [...model.children]) if(child.name!=="fixed")moving.add(child);
+      model.add(moving);
+      rig.getObjectByName("Pole").scale.y=6000/(1800*seatScale);
+      const track=rig.getObjectByName("Vertical_Track_400");
+      track.scale.y=1.55;
+      track.position.y=-365;
+      function placeCarriage(upper){
+        moving.position.y=axisHeight(upper)*1000/seatScale-upper;
+      }
+      placeCarriage(735);
+      g.add(rig);
+      if(i===0){
+        const mixer=new T.AnimationMixer(rig),clip=source.animations[0];
+        const action=mixer.clipAction(clip);
+        action.setLoop(T.LoopOnce,1);action.clampWhenFinished=true;action.play();action.paused=true;
+        g.userData.pose=function(frame){action.time=Math.min(clip.duration,frame/24);mixer.update(0);placeCarriage(staygapSide.frame(frame).upper);};
+      }
       g.position.set(p[0], 0, p[1]); g.rotation.y = faceIn(main, pp[1]); scene.add(g);
       if (i === 0) PROD.team.staygap = g;
     });
     // 04 NAVIAR — 골목 뒤편의 환경미화원 (바이저를 머리에 씀) + 수레
     var vz = teamObj("naviar");
     if (vz) PROD.team.visor = vz;
-    var R0 = RIGS.act_worker || RIGS.person_03 || RIGS.person_01;   // 주황 조끼 환경미화원 (원래 모습)
+    var R0 = RIGS.person_03 || RIGS.person_01;
     if (R0 && vz) {
       var wk = cloneRig(R0), p3 = sp[3];
       wk.root.position.set(p3[0], 0, p3[1]); wk.root.rotation.y = Math.atan2(a1.ux, a1.uy);   // 골목 아래(큰길) 쪽을 봄
@@ -1184,58 +1128,18 @@
       var cp = MAP.pointOn(a1, 120, 5); cart.position.set(cp[0], 0, cp[1]); cart.rotation.y = 0.3; scene.add(cart); PROD.team.cart = cart;
       placeVisor();
     }
-    // v6: 장면 곳곳의 행인 (짙은 실루엣) — 팔짱 끼고 기다림 · 손 흔듦 · 고민하며 서 있음 · 달려감
-    EXTRAS = [];
-    function extra(model, x, z, ry, pose, opt) {
-      if (!RIGS[model]) return null; var r = cloneRig(RIGS[model]); r.root.position.set(x, 0, z); r.root.rotation.y = ry; scene.add(r.root); poseWalk(r, 0, 0);
-      r.pose = pose; if (opt) for (var k in opt) r[k] = opt[k]; poseWalk(r, 0, 0); EXTRAS.push(r); return r;
-    }
-    var mainUx = main.ux, mainUy = main.uy, toMain = Math.atan2(main.ux, main.uy);
-    extra("person_04", sp[0][0] + 26, sp[0][1] + 18, toMain + 2.4, "idle2", { preset: window.MDPeople && MDPeople.CROSS });            // FLOWAY 옆: 팔짱
-    var TH = window.MDPeople && MDPeople.THINK;
-    extra("person_06", sp[0][0] - 30, sp[0][1] + 24, toMain - 1.2, "breathidle", { preset: TH });                         // v8: 서서 고민 (턱에 손)
-    extra("person_07", sp[1][0] + 34, sp[1][1] - 20, toMain + 1.9, "idle2", { preset: TH });                              // STAY:GAP 근처: 서서 고민
-    extra("person_02", sp[1][0] - 36, sp[1][1] + 22, toMain - 2.0, "holdidle", {});                                      // 무언가 들고 기다림
-    extra("person_01", sp[2][0] - 40, sp[2][1] + 30, toMain + .4, "breathidle", { preset: window.MDPeople && MDPeople.CROSS });            // STREET FOLD 골목 입구: 팔짱
-    if (sp[3]) extra("person_03", sp[3][0] + 30, sp[3][1] + 26, toMain - 2.2, "briefidle", {});                         // 가방 들고 서 있음
-    extra("person_05", sp[2][0] + 34, sp[2][1] - 26, toMain + 2.6, "breathidle", { preset: TH });                         // 노점 근처: 메뉴 보며 고민
-    // 큰길을 달려가는 사람 2명 (달리기 동작, 큰길을 따라 왕복)
-    [[300, -18, 1], [900, 22, -1]].forEach(function (q, i) {
-      var r = extra(i ? "person_05" : "person_03", 0, 0, 0, null, {}); if (!r) return;
-      r.runner = { s0: q[0], lat: q[1], dir: q[2], sp: 46 + i * 8 }; r.gait = "run";
-    });
-  }
-  var EXTRAS = [];
-  function tickExtras() {
-    var t = performance.now() / 1000, main = ST[0];
-    for (var i = 0; i < EXTRAS.length; i++) { var r = EXTRAS[i], R = r.runner; if (!R) continue;
-      var L = 1500, d = (t * R.sp) % (L * 2), s2 = d < L ? d : L * 2 - d, dir = (d < L ? 1 : -1) * R.dir, ss = 60 + ((R.s0 + s2 * R.dir) % L + L) % L;
-      var p = MAP.pointOn(main, ss, R.lat); r.root.position.set(p[0], 0, p[1]); r.root.rotation.y = Math.atan2(main.ux * dir, main.uy * dir);
-      poseWalk(r, t * 7.5 + i, 1);
-    }
   }
   // 바이저를 미화원 머리 높이 · 앞쪽에 맞춤 (사람이 움직이면 매 장면 다시 부름)
   var V_TMP = new T.Vector3();
   function placeVisor() {
     var t = PROD.team, wk = t && t.worker, vz = t && t.visor; if (!wk || !vz) return;
     // 머리 가운데: 사람 키(H) 기준 비율로 (뼈 위치는 목뒤라 얼굴과 어긋남)
-    if (wk.mx && wk.bone) {          // v6: 머리 뼈를 따라 얼굴에 정확히 씌움 (고개를 숙이거나 돌려도 같이 움직임)
-      wk.root.updateMatrixWorld(true); var hq = new T.Quaternion(), hp = V_TMP;
-      if (wk.headFrame(hp, hq)) {
-        var off = new T.Vector3((VISOR_FIT.side || 0) * wk.H, VISOR_FIT.up * wk.H, VISOR_FIT.fwd * wk.H).applyQuaternion(hq);
-        vz.position.copy(hp).add(off);
-        vz.quaternion.copy(hq).multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), VISOR_YAW));
-        vz.scale.setScalar(M * VISOR_FIT.scale);
-        return;
-      }
-    }
     var ry0 = wk.root.rotation.y, H = wk.H, hd = wk.root.position;
     vz.position.set(hd.x + Math.sin(ry0) * 0.012 * H, hd.y + 0.835 * H, hd.z + Math.cos(ry0) * 0.012 * H);
     vz.scale.setScalar(M * 1.22);
     vz.rotation.y = wk.root.rotation.y + VISOR_YAW;
   }
-  var VISOR_YAW = Math.PI / 2;
-  var VISOR_FIT = { side: 0.032, up: 0.004, fwd: 0.03, scale: 1.04 };   // 머리 뼈(목 위) 기준: 눈높이까지 올림 · 살짝 앞으로 · 크기   // 바이저의 얼굴 가림막(모델의 -x)을 사람 앞쪽(+z)으로
+  var VISOR_YAW = Math.PI / 2;   // 바이저의 얼굴 가림막(모델의 -x)을 사람 앞쪽(+z)으로
   api.placeVisor = placeVisor;
   function nearestStreet(x, z) {
     var best = null;
@@ -1394,9 +1298,8 @@
     CC_LIVE.push(r);
     return r;
   }
-  function syncRigs() { tickExtras(); for (var i = 0; i < CC_LIVE.length; i++) { var r = CC_LIVE[i]; if (r.root.visible && r.root.parent) r.sync(); } }
+  function syncRigs() { for (var i = 0; i < CC_LIVE.length; i++) { var r = CC_LIVE[i]; if (r.root.visible && r.root.parent) r.sync(); } }
   function cloneRig(R0) {
-    if (R0.mx) { var rx = window.MDPeople.clone(R0); CC_LIVE.push(rx); return rx; }
     if (R0.cc) return cloneRigCC(R0);
     var bones = {}, list = [];
     R0.ORDER.forEach(function (b) {
@@ -1458,15 +1361,14 @@
 
   // 걷기 자세 (ph: 걸음 위상, amt: 0 서 있음 ~ 1 걷기)
   function poseWalk(r, ph, amt) {
-    if (r.mx) { r.walk(ph, amt); return; }
     var s = Math.sin(ph), b = r.b, H = r.H, st = r.stride;
     b.legL.rotation.x = -0.42 * st * s * amt; b.legR.rotation.x = 0.42 * st * s * amt;
     b.kneeL.rotation.x = 0.6 * st * Math.max(0, Math.sin(ph - 1.3)) * amt;
     b.kneeR.rotation.x = 0.6 * st * Math.max(0, Math.sin(ph - 1.3 + Math.PI)) * amt;
     b.armL.rotation.set((r.armFree.L ? 0.3 : 0) * s * amt, 0, 0); b.armR.rotation.set(-(r.armFree.R ? 0.3 : 0) * s * amt, 0, 0);
     b.elbL.rotation.x = 0; b.elbR.rotation.x = 0;
-    b.hip.position.y = r.hipY; // No vertical walking bounce.
-    b.hip.rotation.set(0, 0.014 * s * amt, 0); b.spine.rotation.set(0.006 * amt, -0.02 * s * amt, 0); b.head.rotation.set(0, 0.008 * s * amt, 0);
+    b.hip.position.y = r.hipY + (Math.abs(Math.cos(ph)) - 0.5) * 0.018 * H * amt;
+    b.hip.rotation.set(0, 0.07 * s * amt, 0); b.spine.rotation.set(0.03 * amt, -0.1 * s * amt, 0); b.head.rotation.set(0, 0.04 * s * amt, 0);
   }
   // 손 끝 위치 (세계 좌표)
   var tmpV = new T.Vector3();
@@ -1477,7 +1379,7 @@
   }
 
   /* ---------- 사람 움직이기 ---------- */
-  var WALKERS = ["person_01", "person_02", "person_03", "person_05", "person_06", "person_07"];   // 짝다리 자세(person_04)는 걷는 사람으로 쓰지 않음 (서 있는 역할만)
+  var WALKERS = ["person_01", "person_02", "person_03", "person_05"];   // 짝다리 자세(person_04)는 걷는 사람으로 쓰지 않음 (서 있는 역할만)
   var hideAround = [], relayMode = false;   // 릴레이 장면에서 사람을 비워 둘 곳 [x, z, r]
   function updatePeople(t) {
     var n = peopleAgents.length, cam = camera.position, near = [], i;
@@ -1511,7 +1413,7 @@
     for (i = 0; i < n; i++) {
       var a2 = peopleAgents[i], sc = 0.92 + (i % 7) * 0.025;
       if (a2._hide || taken[i]) sc = 0;
-      dummy.position.set(a2._x, 0, a2._z);
+      dummy.position.set(a2._x, a2._mv ? Math.abs(Math.sin(t * 0.35 + i)) * 0.6 : 0, a2._z);
       dummy.rotation.set(0, a2._ry, 0);
       dummy.scale.set(sc, sc, sc);
       dummy.updateMatrix(); (i & 1 ? people2 : people).setMatrixAt(i >> 1, dummy.matrix);
@@ -1579,13 +1481,13 @@
     // 사람: 사장님(회색 맨투맨, 두 팔이 자유로움) · 커플(흰 상의 + 검정 터틀넥)
     // 실제 사람 몸(사진 기반 3D)을 짙은 실루엣으로 — 사람은 형태만, 시선은 제품으로
     function mq(c, model) { var r = RIGS[model] ? cloneRig(RIGS[model]) : makeMannequin(c); scene.add(r.root); return r; }
-    RL.boss = mq({ body: "#4A4C47", limb: "#5A5C56", head: "#E9E2CC", hand: "#2A2B28", apron: "#F2D94B" }, RIGS.act_boss ? "act_boss" : "person_02");   // 사장님 (FOLD MARK 를 쓰는 사람 → 원래 모습)
+    RL.boss = mq({ body: "#4A4C47", limb: "#5A5C56", head: "#E9E2CC", hand: "#2A2B28", apron: "#F2D94B" }, "person_02");   // 사장님
     RL.boss.root.position.copy(P(7.6, 6.0));        // 수레 뒤 15cm — 팔꿈치를 굽혀 FOLD MARK 에 닿는 거리
     var toFM = P(7.4, 0.0).sub(RL.boss.root.position); RL.bossRy = Math.atan2(toFM.x, toFM.z);   // 수레 · FOLD MARK 쪽을 봄
     RL.boss.root.rotation.y = RL.bossRy; poseWalk(RL.boss, 0, 0);
-    RL.her = mq({ body: "#F1ECDD", limb: "#E6DFCB", head: "#F7F3E6", joint: "#C9C1AA" }, RIGS.act_her ? "act_her" : "person_05");            // 커플 (걷는 모습이 자연스러운 사람)
-    if (RIGS.person_04) { RL.wait = cloneRig(RIGS.person_04); scene.add(RL.wait.root); RL.wait.root.position.copy(P(-16, -9)); RL.wait.root.rotation.y = faceS + Math.PI + 0.5; poseWalk(RL.wait, 0, 0); RL.wait.pose = "breathidle"; RL.wait.preset = window.MDPeople && MDPeople.CROSS; poseWalk(RL.wait, 0, 0); }   // 팔짱 끼고 기다리는 사람 (실루엣)   // 짝다리 손님: 서 있기만
-    RL.him = mq({ body: "#B9B39F", limb: "#A9A38F", head: "#EFE9D6", joint: "#646661" }, RIGS.act_him ? "act_him" : "person_01");   // 검정 터틀넥
+    RL.her = mq({ body: "#F1ECDD", limb: "#E6DFCB", head: "#F7F3E6", joint: "#C9C1AA" }, "person_05");            // 커플 (걷는 모습이 자연스러운 사람)
+    if (RIGS.person_04) { RL.wait = cloneRig(RIGS.person_04); scene.add(RL.wait.root); RL.wait.root.position.copy(P(-16, -9)); RL.wait.root.rotation.y = faceS + Math.PI + 0.5; poseWalk(RL.wait, 0, 0); }   // 짝다리 손님: 서 있기만
+    RL.him = mq({ body: "#B9B39F", limb: "#A9A38F", head: "#EFE9D6", joint: "#646661" }, "person_01");   // 검정 터틀넥
     RL.her.root.visible = RL.him.root.visible = false;
 
     // FOLD MARK (움직이는 한 대)
@@ -1722,11 +1624,7 @@
       r.root.position.copy(a.p);
       var ry = a.ry; if (w1 >= 1 && w2 <= 0) ry = ryStop; if (w2 >= 1) ry = ryEnd;
       r.root.rotation.y = ry;
-      // v8: 스크롤을 멈추면 걷던 자세로 굳지 않고 천천히 서 있는 자세로 돌아감
-      var now = performance.now(), dd = Math.abs(a.d - (r._ld == null ? a.d : r._ld)); r._ld = a.d;
-      if (dd > 0.02) r._lm = now; var still = now - (r._lm || 0) > 180;
-      r._amt = r._amt == null ? 0 : r._amt + (((mv && !still) ? 1 : 0) - r._amt) * 0.12;
-      poseWalk(r, (w2 > 0 ? 300 + a.d : a.d) * 0.55, r._amt);
+      poseWalk(r, (w2 > 0 ? 300 + a.d : a.d) * 0.55, mv ? 1 : 0);
     }
     walk(RL.her, herPath, herPath2, RL.faceS, RL.sf.rotation.y + Math.PI);
     walk(RL.him, himPath, himPath2, RL.faceS + 0.3, RL.sf.rotation.y + Math.PI + 0.4);
@@ -1869,9 +1767,8 @@
   function teamInit() {
     if (TM || !PROD.team) return TM;
     var t = PROD.team; TM = { ok: !!(t.floway || t.staygap || t.worker) };
-    var RT = RIGS.act_tour || RIGS.person_02;    // 01 · 02 는 같은 남자가 이어서 씀 (원래 모습)
-    if (RT) { TM.tour = cloneRig(RT); TM.tour.root.visible = false; scene.add(TM.tour.root); }
-    if (RT) { TM.elder = cloneRig(RT); TM.elder.root.visible = false; TM.elder.root.rotation.order = "YXZ"; scene.add(TM.elder.root); }
+    if (RIGS.person_02) { TM.tour = cloneRig(RIGS.person_02); TM.tour.root.visible = false; scene.add(TM.tour.root); }
+    if (RIGS.person_02) { TM.elder = cloneRig(RIGS.person_02); TM.elder.root.visible = false; TM.elder.root.rotation.order = "YXZ"; scene.add(TM.elder.root); }
     if (t.floway) {
       TM.kc = uiCanvas(); TM.kt = new T.CanvasTexture(TM.kc); TM.kt.colorSpace = T.SRGBColorSpace; TM.kst = -1;
       var scr = new T.Mesh(new T.PlaneGeometry(0.42, 0.5), new T.MeshBasicMaterial({ map: TM.kt, toneMapped: false }));
@@ -1886,20 +1783,20 @@
     return TM;
   }
   // Resolve contact from the deformed mesh, not a guessed pelvis offset.
-  function resolveStayGapContact(re, pole, upperAngle, seatedWeight) {
+  function resolveStayGapContact(re, pole, upperAngle, seatedWeight, hy, hz) {
     if (re.sync) re.sync();
     re.root.updateMatrixWorld(true); pole.updateMatrixWorld(true);
     re.mesh.skeleton.update();
     var inv = new T.Matrix4().copy(pole.matrixWorld).invert();
     var transform = new T.Matrix4().multiplyMatrices(inv, re.mesh.matrixWorld);
     var p = new T.Vector3(), forward = new T.Vector3(0,0,1).applyQuaternion(pole.quaternion);
-    var k = 420 / 258.1, hz = .1670558*k, hy = .687815039*k;
+    var k = seatScale;
     var front = hz + .014*k + .018, push = 0;
     var count = re.mesh.geometry.attributes.position.count;
     // The backrest is a solid obstacle even where the person's clothing has holes.
     for (var i=0;i<count;i++) {
       re.mesh.getVertexPosition(i,p).applyMatrix4(transform).multiplyScalar(1/M);
-      if (p.y > hy-.04 && p.y < 1.725 && Math.abs(p.x)<.24)
+      if (p.y > hy-.04 && p.y < hy+.375*k && Math.abs(p.x)<.24)
         push=Math.max(push,front-p.z);
     }
     if (push>0) re.root.position.addScaledVector(forward,push*M);
@@ -1915,16 +1812,33 @@
         re.mesh.getVertexPosition(j,p).applyMatrix4(transform).multiplyScalar(1/M);
         if(Math.abs(p.x)>.24 || p.z<hz-.02 || p.z>hz+.28*k*sn+.015)continue;
         var distance=(p.y-hy)*sn+(p.z-hz)*cs;
-        lift=Math.max(lift,.014*k+.012-distance);
+        lift=Math.max(lift,.010*k+.003-distance);
       }
       if(lift>0){re.root.position.y+=lift*sn*M;re.root.position.addScaledVector(forward,lift*cs*M);}
     }
+    // Below the cushion, trousers, calves and hands must stay outside the
+    // entire swept triangle, including its front hinge and diagonal brace.
+    re.root.updateMatrixWorld(true);
+    transform.multiplyMatrices(inv,re.mesh.matrixWorld);
+    var sin=Math.sin(upperAngle), cos=Math.cos(upperAngle);
+    var lipZ=hz+.28*k*sin, lipY=hy-.28*k*cos;
+    var clearance=.028, advance=0;
+    for(var v=0;v<count;v++){
+      re.mesh.getVertexPosition(v,p).applyMatrix4(transform).multiplyScalar(1/M);
+      if(Math.abs(p.x)>.26 || p.y>hy+.375*k+.025)continue;
+      var boundary=hz;
+      if(p.y<lipY+.016) boundary=lipZ;
+      else if(p.y<hy+.016 && cos>.001)
+        boundary=hz+Math.min(lipZ-hz,(hy+.016-p.y)*sin/cos);
+      advance=Math.max(advance,boundary+clearance-p.z);
+    }
+    re.root.position.addScaledVector(forward,advance*M);
     re.root.updateMatrixWorld(true);
   }
 
   function teamHide() { if (!TM) return; if (TM.tour) TM.tour.root.visible = false; if (TM.elder) TM.elder.root.visible = false; if (TM.hud) TM.hud.visible = false;
     var t = PROD.team; if (t && t.worker && TM.w0) { t.worker.root.position.copy(TM.w0); t.worker.root.rotation.y = TM.wry; poseWalk(t.worker, 0, 0); t.cart.position.copy(TM.c0); placeVisor(); }
-    if (t && t.staygap) t.staygap.children.forEach(function (c) { if (c.userData.state != null) c.visible = c.userData.state === 0; }); }
+    if (t && t.staygap) t.staygap.userData.pose(0); }
   api.teamReady = function () { return !!(api.ok && api.modelsReady && PROD.team && teamInit() && TM.ok); };
   api.relayTeam = function (k, u, t) {
     if (!api.teamReady()) return false;
@@ -1939,7 +1853,7 @@
       else { r.root.position.copy(start).lerp(stand, w1); r.root.rotation.y = w1 < 1 ? Math.atan2(sd.x, sd.z) : ry + Math.PI; poseWalk(r, w1 * 22, w1 < 1 ? 1 : 0); }
       var pr = Math.max(sstep(0.18, 0.22, u) * (1 - sstep(0.27, 0.3, u)), sstep(0.32, 0.36, u) * (1 - sstep(0.43, 0.46, u)), sstep(0.5, 0.53, u) * (1 - sstep(0.56, 0.59, u)));
       var ph = sstep(0.58, 0.62, u) * (1 - sstep(0.7, 0.74, u));
-      r.b.armR.rotation.x = -0.5 * pr - 0.35 * ph; r.b.elbR.rotation.x = -0.9 * pr - 1.5 * ph; r.b.spine.rotation.x = 0.024 * pr;
+      r.b.armR.rotation.x = -0.5 * pr - 0.35 * ph; r.b.elbR.rotation.x = -0.9 * pr - 1.5 * ph; r.b.spine.rotation.x = 0.12 * pr;
       var st = u < 0.31 ? 0 : u < 0.5 ? 1 : 2, kk = st === 0 ? sstep(0.19, 0.22, u) : st === 1 ? sstep(0.35, 0.47, u) : 1;
       var key2 = st * 100 + Math.round(kk * 20); if (key2 !== TM.kst) { TM.kst = key2; drawKiosk(TM.kc, st, kk); TM.kt.needsUpdate = true; }
       var far = base.clone().addScaledVector(f, 3.1 * M).addScaledVector(sd, 1.9 * M); far.y = 1.55 * M;
@@ -1950,39 +1864,31 @@
       hide.push([base.x, base.z, 22]);
     } else if (k === 1 && T3.staygap && TM.elder) {
       var Pg = T3.staygap, ry1 = Pg.rotation.y, f1 = fr(ry1), s1 = new T.Vector3(f1.z, 0, -f1.x), b1 = Pg.position.clone(), re = TM.elder; re.root.visible = true;
-      if (!re.opaqueSeatMaterial) { re.root.traverse(function(o) { if (!o.isMesh) return; var one = function (m0) { var m = m0.clone(); if (m.alphaTest > 0 || m.map && m0.transparent && m0.opacity === 1) return m; m.transparent = false; m.opacity = 1; m.depthTest = true; m.depthWrite = true; return m; }; o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material); }); re.opaqueSeatMaterial = true; }
-      var green = sstep(.20,.23,u), perch=sstep(.27,.35,u), seated=sstep(.55,.64,u);
-      var sit=.45*sstep(.35,.40,u)+.55*sstep(.64,.70,u), lean=sstep(.09,.14,u)*(1-sstep(.23,.26,u));
-      var upperAngle=(perch+seated)*Math.PI/4, panelAngle=(30.8*perch+20*seated)*Math.PI/180;
-      Pg.children.forEach(function(c){ if(c.userData.state!=null) c.visible=c.userData.state===0; });
-      var rig=Pg.children[0], upper=rig.getObjectByName("sg_upper_pivot"), lower=rig.getObjectByName("sg_lower_pivot");
-      if(upper) upper.rotation.x=-upperAngle;
-      if(lower) lower.rotation.x=upperAngle+panelAngle;
-      rig.traverse(function(o){if(!o.isMesh)return;var n=o.name;
-        if(n==="sg_upper_led"||n==="sg_lower_led"||n==="sg_pole_led"){
-          var allowed=n==="sg_lower_led" ? u>.5 : u>.23;
-          o.material.color.setHex(allowed?0x8acc5c:0xce3953);
-          o.material.emissive.copy(o.material.color);o.material.emissiveIntensity=.2;
-        }
-      });
-      var cadScale = 420 / 258.1, hingeY = .687815039 * cadScale, hingeZ = .1670558 * cadScale;
+      if (!re.opaqueSeatMaterial) { re.root.traverse(function(o) { if (!o.isMesh) return; o.material = o.material.clone(); o.material.transparent = false; o.material.opacity = 1; o.material.depthTest = true; o.material.depthWrite = true; }); re.opaqueSeatMaterial = true; }
+      
+      var lean=sstep(.09,.14,u)*(1-sstep(.23,.26,u));
+      const railFrame=u<.35 ? 32+58*sstep(.27,.35,u) : staygapSide.cursor(u),rail=staygapSide.frame(railFrame);
+      Pg.userData.pose(railFrame);
+      const hingeY=axisHeight(rail.upper),hingeZ=(.149+.079)*seatScale;
+      const upperAngle=Math.atan2(rail.depth-79,rail.upper-rail.lower);
+      var sit=upperAngle/(Math.PI/2);
       var stand1 = b1.clone().addScaledVector(f1, (hingeZ + .16) * M), from1 = stand1.clone().addScaledVector(s1, -6 * M).addScaledVector(f1, 0.6 * M);
       var wk1 = sstep(0.0, 0.15, u);
       re.root.position.copy(from1).lerp(stand1, wk1);
       // Pelvis stays in front of the backrest and above the seat, never inside the panel.
-      if (sit > 0) re.root.position.addScaledVector(f1, (.18 * Math.sin(upperAngle) - .16) * M * sstep(.35,.40,u));
+      if (sit > 0) re.root.position.addScaledVector(f1, (.18 * Math.sin(upperAngle) - .16) * M * sstep(.27,.35,u));
       re.root.rotation.set(-0.1 * lean, wk1 < 1 ? Math.atan2(s1.x, s1.z) : ry1, 0);
       poseWalk(re, wk1 * 18, wk1 < 1 ? 1 : 0);
       var press1 = Math.max(sstep(.23,.25,u)*(1-sstep(.27,.29,u)),sstep(.50,.52,u)*(1-sstep(.55,.57,u)));
       re.b.armR.rotation.x = 0.35 * press1; re.b.elbR.rotation.x = -0.4 * press1;
-      if (sit > 0) { re.b.legL.rotation.x = -1.45 * sit; re.b.legR.rotation.x = -1.4 * sit; re.b.kneeL.rotation.x = 1.45 * sit; re.b.kneeR.rotation.x = 1.4 * sit; re.b.hip.position.y = lerp(re.hipY, (hingeY - .18 * Math.cos(upperAngle) + .115) * M, sstep(.35,.40,u)); }
-      if (wk1 > .95) resolveStayGapContact(re, Pg, upperAngle, sit);
+      if (sit > 0) { re.b.legL.rotation.x = -1.45 * sit; re.b.legR.rotation.x = -1.4 * sit; re.b.kneeL.rotation.x = 1.45 * sit; re.b.kneeR.rotation.x = 1.4 * sit; re.root.position.y += ((hingeY - .18 * Math.cos(upperAngle) + .115) * M - re.hipY) * sstep(.27,.35,u); }
+      if (wk1 > .80) resolveStayGapContact(re, Pg, upperAngle, sit, hingeY, hingeZ);
       var cp1 = b1.clone().addScaledVector(s1, 2.6 * M).addScaledVector(f1, 1.9 * M); cp1.y = 1.85 * M;
-      var cl1 = b1.clone().addScaledVector(f1, 0.35 * M); cl1.y = 1.35 * M;
-      var cp1b = b1.clone().addScaledVector(s1, 1.4 * M).addScaledVector(f1, 1.5 * M); cp1b.y = 1.65 * M;
+      var cl1 = b1.clone().addScaledVector(f1, 0.35 * M); cl1.y = 1.05 * M;
+      var cp1b = b1.clone().addScaledVector(s1, 2.65 * M).addScaledVector(f1, 2.1 * M); cp1b.y = 1.5 * M;
       var z1 = sstep(0.4, 0.6, u);
-      cpos = cp1.lerp(cp1b, z1); clook = cl1; fov = 36; focusP = b1.clone().setY(1.0 * M);
-      hide.push([b1.x, b1.z, 12 + 30 * green]);   // 초록이 되면 사람들이 흩어짐
+      cpos = cp1.lerp(cp1b, z1); clook = cl1; fov = 42; focusP = b1.clone().setY(1.0 * M);
+      hide.push([b1.x, b1.z, 12 + 30 * sstep(.20,.23,u)]);   // 초록이 되면 사람들이 흩어짐
     } else if (k === 3 && T3.worker) {
       var wr = T3.worker, a1 = ST[2], fa = new T.Vector3(a1.ux, 0, a1.uy), w0 = TM.w0;
       var walkW = sstep(0.0, 0.42, u), from3 = w0.clone().addScaledVector(fa, -9 * M);
@@ -2008,7 +1914,6 @@
     renderDOF(focus, Math.max(8, focus * 0.6), 4.5);
     return true;
   };
-  api._team = function () { return PROD.team; };
   api._rig = { makeRig: makeRig, makeRigCC: makeRigCC, cloneRig: cloneRig, poseWalk: poseWalk, handPos: handPos };   // 점검용
 
   /* ---------- 카메라 ---------- */
@@ -2256,8 +2161,9 @@
       r.render(sc, cam);
     })();
   }
+  api.productRoot = function(name) { var g=MD[name] || (name==="staygap_3" && MD.staygap_1); return g && g.scene; };
   api.viewer = function (holder, name) {
-    var g = MD[name]; if (!g || !T.WebGLRenderer) return false;
+    var g = MD[name] || (name==="staygap_3" && MD.staygap_1); if (!g || !T.WebGLRenderer) return false;
     try { if (!VW) viewerInit(); } catch (e) { return false; }
     if (!VW.models[name]) {
       var root = g.scene.clone(true), box = new T.Box3().setFromObject(root), sz = box.getSize(new T.Vector3()), ctr = box.getCenter(new T.Vector3());
@@ -2268,12 +2174,22 @@
     VW.spin.children.slice().forEach(function (c) { VW.spin.remove(c); });
     var m = VW.models[name]; VW.spin.add(m);
     var H = m.userData.h, fit = Math.max(H * 0.62, m.userData.d * 0.5) / Math.tan(VW.cam.fov * Math.PI / 360);   // 넓은 물건(안경)도 화면 안에 다 들어오게
+    VW.cam.far = Math.max(50, fit + m.userData.d * 2);
+    VW.cam.updateProjectionMatrix();
     VW.cam.position.set(0, H * 0.06, fit); VW.cam.lookAt(0, 0, 0);
     VW.sh.position.y = -H / 2 - 0.002; VW.sh.scale.setScalar(m.userData.r * 2.4);
     if (VW.r.domElement.parentNode !== holder) holder.appendChild(VW.r.domElement);
     VW.r.domElement.style.width = "100%"; VW.r.domElement.style.height = "100%"; VW.r.domElement.style.display = "block";
-    VW.on = true; VW.name = name; VW.rotY = -0.6; VW.rotX = 0.1; VW.vy = 0.05; VW.idle = 0; VW.w = 0;
+    VW.on = true; VW.name = name; VW.rotY = name === "staygap_rail_v7" ? Math.PI - .55 : -.6; VW.rotX = .1; VW.vx = 0; VW.vy = name === "staygap_rail_v7" ? 0 : .05; VW.idle = 0; VW.w = 0;
     return true;
+  };
+  api.viewerHit = function (x, y) {
+    if (!VW || !VW.on) return false;
+    var rect = VW.r.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    var ray = new T.Raycaster();
+    ray.setFromCamera(new T.Vector2(2 * (x - rect.left) / rect.width - 1, 1 - 2 * (y - rect.top) / rect.height), VW.cam);
+    return ray.intersectObjects(VW.spin.children, true).length > 0;
   };
   api.viewerHide = function () { if (VW) VW.on = false; };
   api.path = path;

@@ -7,7 +7,7 @@
 <meta name="description" content="우리가 상상한 2030년의 명동">
 <link rel="icon" href="./assets/images/favicon.png">
 <link rel="stylesheet" href="./css/fonts.css">
-<link rel="stylesheet" href="./css/style.css">
+<link rel="stylesheet" href="./css/style.css?v=map-opening">
 </head>
 <body>
 
@@ -32,6 +32,7 @@
 </div>
 
 <main>
+
 
   <!-- ① 인트로 → ② 시간 흐름 → ③ 거리로 내려앉기 -->
   <section class="pin" id="top" data-scene="A">
@@ -70,7 +71,7 @@
       <h2 class="t-title rv" style="--i:1" data-t="world.title"></h2>
       <p class="t-body rv" style="--i:2" data-t="world.body"></p>
     </div>
-    <div class="signs" id="signs"></div>
+    <div id="signSequence"><div class="signs" id="signs"></div></div>
   </section>
 
   <!-- ⑤ Relay -->
@@ -96,6 +97,7 @@
         <div class="r-cap-top"><span class="r-cap-no" id="capNo"></span><span class="r-cap-count" id="capCount"></span></div>
         <div class="r-cap-name" id="capName"></div>
         <p class="r-cap-line" id="capLine"></p>
+        <div id="relayRailControls" hidden style="margin-bottom:.75em"><button type="button" id="relayUpper" data-relay-joint="upper">위 버튼 · 걸터앉기</button> <button type="button" id="relayLower" data-relay-joint="lower">아래 버튼 · 앉기</button></div>
         <a class="btn-text r-cap-link" id="capLink" href="product-01.html"><span>자세히 보기</span><span class="arr">↗</span></a>
       </div>
     </div>
@@ -125,14 +127,8 @@
         <button class="sel-replay" id="sReplay" type="button" title="동선 다시 보기"><span aria-hidden="true">↻</span><span>동선 다시 보기</span></button>
       </nav>
       <!-- v4.2: 예전 'Across Myeongdong' 장면을 여기로 합침 — 제품에서 다음 제품까지 동선을 따라 카메라가 이동 -->
-      <div class="sel-tour" id="sTour" aria-live="polite">
-        <p class="t-label">네 제품은 명동 곳곳에서 이어진다</p>
-        <div class="sel-tour-row"><i id="sTourDot"></i><span id="sTourTxt"></span></div>
-        <div class="sel-tour-bar" aria-hidden="true"><i id="sTourBar"></i></div>
-        <button class="sel-tour-skip" id="sTourSkip" type="button">건너뛰기 <span>— 누르면 다시 스크롤할 수 있어요</span></button>
-      </div>
       <div class="sel-detail" id="sDetail" aria-hidden="true">
-        <div class="sel-img" id="sImgWrap"><img id="sImg" alt=""><div class="sel-view" id="sView" aria-label="잡고 돌려 볼 수 있는 3D 제품"></div><p class="sel-hint">드래그해서 돌려 보기</p></div>
+        <div class="sel-img" id="sImgWrap"><img id="sImg" alt=""><div class="sel-view" id="sView" aria-label="잡고 돌려 볼 수 있는 3D 제품"></div><p class="sel-hint">드래그해서 회전 · 배경을 누르면 섬 지도로</p></div>
         <div class="sel-panel panel">
           <div class="r-cap-top"><span class="r-cap-no" id="sNo"></span><span class="r-cap-count" id="sCount"></span></div>
           <div class="r-cap-name" id="sName"></div>
@@ -161,33 +157,20 @@
     <div class="grid" id="grid"></div>
   </section>
 
-  <!-- ⑨ Outro -->
-  <section class="outro" id="outro">
-    <div class="o-art" id="oArt"></div>
-    <div class="o-text">
-      <p class="o-line rv" id="oLine"></p>
-      <a class="btn-primary rv" style="--i:1" href="#select"><span data-t="outro.button">제품 보기</span><span class="arr">↗</span></a>
-    </div>
-  </section>
 </main>
 
-<footer class="footer">
-  <span>2030 명동 거리 · MYEONGDONG 2030 — <a href="../index.html">전체 프로젝트</a></span>
-  <span>Typeface: Pretendard (SIL OFL)</span>
-</footer>
-
-<a class="to-top" id="toTop" href="#top" aria-label="맨 위로">↑</a>
-
 <!-- 순서 중요: 설정 → 문구 → 그림 → 지도 → 실행 -->
-<script src="./js/config.js"></script>
-<script src="./js/content.js"></script>
-<script src="./js/art.js"></script>
+<script src="./js/config.js?v=map-opening"></script>
+<script src="./js/content.js?v=map-opening"></script>
+<script src="./js/rail-side-motion.js?v=pole-ground"></script>
+<script src="./js/art.js?v=clear-rail"></script>
 <script src="./js/map.js"></script>
 <script src="./js/vendor/three.min.js"></script>
 <script src="./js/vendor/three-addons.js"></script>
-<script src="./js/people.js"></script>
 <script src="./js/models/crowd.js"></script>
-<script src="./js/city3d.js"></script>
-<script src="./js/main.js"></script>
+<script src="./js/city3d.js?v=seat-contact"></script>
+<script src="./js/island-elevations.js"></script>
+<script src="./js/island.js?v=map-opening"></script>
+<script src="./js/main.js?v=map-opening"></script>
 </body>
 </html>

@@ -51,11 +51,9 @@
     var v = get(TXT, el.getAttribute("data-t"));
     if (v != null) el.textContent = v;
   });
-  (function () {
-    var lines = TXT.outro.line.split("\n"), last = lines.pop();
-    var o = $("oLine"); o.textContent = lines.join("\n") + (lines.length ? "\n" : "");
-    var em = doc.createElement("em"); em.textContent = last; o.appendChild(em);
-  })();
+
+
+
 
   /* 연도 막대 */
   var ticks = [];
@@ -78,17 +76,17 @@
     var L = SIGN_LAYOUT[i % SIGN_LAYOUT.length];
     var el = doc.createElement("div");
     el.className = "sign " + L.c.split(" ")[0];
-    el.style.left = L.l + "%"; el.style.top = L.t + "%";
+    el.classList.toggle("reading",i===0); el.style.left = L.l + "%"; el.style.top = L.t + "%";
     
     if (L.w) el.style.setProperty("--w", L.w + "vw");
     var inner = doc.createElement("div");
-    inner.className = "sign-in rv " + L.c.split(" ")[1];
+    inner.className = "sign-in " + L.c.split(" ")[1];
     inner.style.setProperty("--i", i % 3);
     inner.style.setProperty("--hang", L.hang + "vw");
     var sm = doc.createElement("small"); sm.textContent = (i < 9 ? "0" : "") + (i + 1);
     inner.appendChild(sm); inner.appendChild(doc.createTextNode(text));
     el.appendChild(inner); $("signs").appendChild(el);
-    signEls.push({ el: el, inner: inner, d: L.d, top: 0, h: 0 });
+    signEls.push(el);
   });
 
   /* 제품 카드 */
@@ -109,17 +107,6 @@
   });
 
   /* 그림 넣기 */
-  $("oArt").innerHTML = ART.street({ seed: 41, night: true });
-  var O = { cv: null, done: "" };                        // v4.1: 마지막 야경은 실제 3D 거리 (밤)
-  function outroNight() {
-    if (!C3D.ok || !C3D.modelsReady) return;
-    var el = $("oArt"), key = el.clientWidth + "x" + el.clientHeight;
-    if (O.done === key) return;
-    if (!O.cv) { O.cv = doc.createElement("canvas"); O.cv.className = "o-3d"; el.appendChild(O.cv); }
-    if (C3D.snapshot(O.cv, C3D.nightKey(), { dark: 1, floor: 1, tables: 1 }, 9400)) {
-      O.done = key; requestAnimationFrame(function () { O.cv.classList.add("is-on"); });
-    }
-  }
   $("rBg").innerHTML = ART.relayBg();
   $("rTrack").innerHTML = ART.relayTrack(TXT.products);
 
@@ -147,6 +134,7 @@
   function tAtYear(y) { for (var q = 0; q <= 1; q += 0.0005) if (yearAt(q) >= y) return q * CFG.timelapseSpeed; return CFG.timelapseSpeed; }
   var SWITCH_T = [tAtYear(2027.75), tAtYear(2029.55)];   // 이 사이에 사람들이 하나둘 정돈됨
   window.MD_SWITCH_T = SWITCH_T;                           // 3D 거리의 사람들도 같은 시점에 정돈됨
+
   var mapA = MAP.create($("mapA"), { agents: nAgents, switchT: SWITCH_T });
   var mapD = $("mapD") ? MAP.create($("mapD"), { agents: nAgents, switchT: SWITCH_T }) : null;
   var mapS = MAP.create($("mapS"), { agents: nAgents, switchT: SWITCH_T, seed: 19 });   // 3D가 안 되는 기기용
@@ -179,13 +167,13 @@
   var relayGeo = { S: 1, X0: 0, top: 0 };
   // 릴레이 01 은 실제 3D (노점 → 골목 테이블) 라서 조금 더 길게
   // 릴레이 보기 방식: 기본은 2D 실루엣, 원하면 3D (선택은 이 브라우저에 기억)
-  var RELAY_MODE = "3d";   // v6: 기본은 3D (2D 를 고르면 기억)
-  try { if (localStorage.getItem("md_relay") === "2d") RELAY_MODE = "2d"; } catch (e) {}
+  var RELAY_MODE = "2d";
+  try { if (localStorage.getItem("md_relay") === "3d") RELAY_MODE = "3d"; } catch (e) {}
   function relay3dCan() { return !reduced && !window.MD_LITE && !!window.THREE && !!window.City3D; }
   function relay3dOn() { return RELAY_MODE === "3d" && relay3dCan(); }
   // v4.5: 구간 순서 01 FLOWAY · 02 STAY-GAP · 03 FOLD MARK → STREET FOLD · 04 NAVIAR — 3D 를 고르면 03 구간이 길어짐
   var SF_SEG = 2;
-  function relayLens() { var on3 = relay3dOn(), per = on3 ? (CFG.scroll.relay3dPer || 6) : CFG.scroll.relayPerPerson, L = [per, per, per, per]; if (on3) L[SF_SEG] = CFG.scroll.relayFirst || 6; return L; }
+  function relayLens() { var per = CFG.scroll.relayPerPerson, L = [per, per, per, per]; if (relay3dOn()) L[SF_SEG] = CFG.scroll.relayFirst || 6; return L; }
   function relayTotal() { return relayLens().reduce(function (a, b) { return a + b; }, 0); }
   function relayLen0() { return relayLens()[SF_SEG]; }
   function relayU(s) {   // 스크롤 → 구간 (0~4)
@@ -194,7 +182,6 @@
     for (var k = 0; k < 4; k++) { if (x < L[k] || k === 3) return clamp(k + x / L[k], 0, 4); x -= L[k]; }
     return 4;
   }
-  scenes.C.screens = CFG.scroll.relayIntro + relayTotal();   // v6: 기본이 3D 라서, 3D 길이로 다시 계산
   var lastW = -1;
   (function () {
     var box = $("rMode"); if (!box) return;
@@ -240,15 +227,9 @@
       var r = scenes[k].el.getBoundingClientRect();
       scenes[k].top = r.top + window.pageYOffset; scenes[k].h = scenes[k].el.offsetHeight;
     });
-    signEls.forEach(function (s) {
-      var r = s.el.getBoundingClientRect();
-      s.top = r.top + window.pageYOffset - (parseFloat(s.el.dataset.ty) || 0); s.h = r.height;
-    });
-    var o = $("outro").getBoundingClientRect();
-    outroTop = o.top + window.pageYOffset; outroBottom = outroTop + o.height;
     dirty = true;
   }
-  var outroTop = 0, outroBottom = 0;
+
 
   function progress(sc, y) { return clamp((y - sc.top) / Math.max(1, sc.h - vh), 0, 1); }
 
@@ -330,14 +311,17 @@
      5. 장면 B — What Changed 간판 (깊이에 따라 다르게 움직임)
      ========================================================= */
   function sceneB(y) {
-    if (mobile || reduced) return;
-    var mid = y + vh / 2;
-    signEls.forEach(function (s) {
-      var c = s.top + s.h / 2, off = (c - mid) * -s.d * 0.35;
-      if (Math.abs(c - mid) > vh * 1.8) return;
-      s.el.dataset.ty = off.toFixed(1);
-      s.el.style.transform = "translate3d(0," + off.toFixed(1) + "px,0)";
-    });
+    const sequence=$("signSequence");
+    const bounds=sequence.getBoundingClientRect();
+    let current=0;
+    if (matchMedia("(max-width:768px)").matches) {
+      const readingLine=vh*.48;
+      signEls.forEach((s,i)=>{if(s.getBoundingClientRect().top<readingLine)current=i;});
+    } else {
+      const travel=sequence.offsetHeight-$("signs").offsetHeight;
+      current=Math.min(5,Math.floor(6*clamp((parseFloat(getComputedStyle($("signs")).top)-bounds.top)/Math.max(1,travel),0,1)));
+    }
+    signEls.forEach((s,i)=>s.classList.toggle("reading",i===current));
   }
 
   /* =========================================================
@@ -352,7 +336,7 @@
   // 사람들의 움직임 (u = 0~4, 구간 번호 / 값 = 무대 위 x 위치)
   var PATH = {
     tour: [[0, 140], [0.16, 600], [0.68, 600], [1.0, 1560], [1.45, 2640], [1.75, 3200]],                 // 01 관광객: 키오스크 → 어르신 곁을 지나감
-    elder: [[0.8, 1820], [1.08, 2330], [4, 2330]],                                                   // 02 어르신: 전봇대에 기댐 → 앉음
+    elder: [[0.8, 2960], [1.08, 2450], [4, 2450]],                                                   // 02 어르신: 전봇대에 기댐 → 앉음
     tA: [[1.55, 1700], [2.0, 3785], [2.2, 3785], [2.44, 4185]],                                       // 03 커플 (노점 → 골목 테이블)
     tB: [[1.58, 1610], [2.0, 3678], [2.22, 3678], [2.46, 4268]],
     worker: [[2.86, 6620], [3.24, 5545], [3.74, 5545], [4.0, 6400]]                                    // 04 환경미화원 (오른쪽에서 들어옴)
@@ -417,18 +401,26 @@
   });
 
   var R3 = { el: $("r3d"), on: false };
+  function pressRelayJoint(joint){
+    const controls=$("relayRailControls");
+    if(controls.hidden)return;
+    const mode=Number(controls.dataset.mode);
+    const next=joint==="upper"?(mode===1?0:1):2;
+    const lengths=relayLens(),sc=scenes.C;
+    const target=CFG.scroll.relayIntro+lengths[0]+lengths[1]*[.17,.42,.70][next];
+    window.scrollTo({top:sc.top+target/sc.screens*(sc.h-vh),behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
+  }
+  $("relay").addEventListener("click",e=>{
+    const joint=e.target.closest("[data-relay-joint]");
+    if(joint)pressRelayJoint(joint.dataset.relayJoint);
+  });
   function sceneC(p) {
     var per = CFG.scroll.relayPerPerson, intro = CFG.scroll.relayIntro;
     var s = p * (intro + relayTotal());
     var u = relayU(s);
     var i = Math.min(3, Math.floor(u)), fr = u - i;
-    var mode3 = relay3dOn() && C3D.init();
-    // v6: 3D 를 고르면 구간 사이에 2D 그림이 끼어들지 않게 — 한 구간이 끝나면 어둡게 잠깐 닫혔다가 다음 3D 장면이 열림
-    var TR = 0.9, cur = i, uu = fr, dip = 0;
-    if (mode3 && i < 3 && fr > TR) { var k = (fr - TR) / (1 - TR); if (k < .5) { dip = k * 2; uu = 1; } else { cur = i + 1; uu = 0; dip = (1 - k) * 2; } }
-    var ready3 = function (q) { return q === SF_SEG ? C3D.relayReady : (C3D.teamReady && C3D.teamReady()); };
-    var use3d = mode3 && ready3(cur);
-    var e = i < 3 ? inOut(seg(fr, mode3 ? 0.88 : 0.6, 1)) : 0;
+    var use3d = relay3dOn() && C3D.init() && (i === SF_SEG ? C3D.relayReady : (C3D.teamReady && C3D.teamReady()));
+    var e = i < 3 ? inOut(seg(fr, i===1 || use3d || relay3dOn() ? 0.88 : 0.6, 1)) : 0;
     var camX = (i + e) * R.seg;
     var S = relayGeo.S, X0 = relayGeo.X0, top = relayGeo.top;
 
@@ -457,25 +449,29 @@
     rq("r-fw-dial").setAttribute("transform", "rotate(" + (pressD * 30 * Math.sin(u * 60)).toFixed(1) + " " + (R.kiosk.x - 7) + " " + (G - 165) + ")");
 
     /* ===== 02 STAY-GAP: 붐빌 땐 빨강(기대기만) → 사람들이 흩어지면 초록 → 아래 버튼 → 판이 펼쳐지고 앉음 ===== */
-    // STEP poses: upper link 0 / 45 / 90 degrees; lower panel 0 / -30.8 / -50.8 degrees in side view.
-    var perch = inOut(seg(u, 1.27, 1.35)), seated = inOut(seg(u, 1.55, 1.64));
-    var upperAngle = 45 * (perch + seated), lowerAngle = -30.8 * perch - 20 * seated;
-    var upperGreen = seg(u, 1.20, 1.23), lowerGreen = seg(u, 1.47, 1.50);
-    var ringC = upperGreen > .5 ? "#8acc5c" : "#ce3953";
-    rq("r-sg-ring").setAttribute("fill", ringC); rq("r-sg-glow").setAttribute("fill", ringC);
-    rq("r-sg-glow").setAttribute("opacity", .22);
-    ["sg-led-u-front","sg-led-u-back"].forEach(function(id){rq(id).setAttribute("fill", ringC);});
-    ["sg-led-l-front","sg-led-l-back"].forEach(function(id){rq(id).setAttribute("fill", lowerGreen > .5 ? "#8acc5c" : "#ce3953");});
-    rq("r-sg-tagR").setAttribute("opacity", 1-upperGreen); rq("r-sg-tagG").setAttribute("opacity", upperGreen);
-    rq("r-sg-tagG").querySelector("text").textContent = lowerGreen > .5 ? "앉기 가능" : "걸터앉기 가능";
-    rq("r-crowd").setAttribute("opacity", (.95-.45*upperGreen-.35*lowerGreen).toFixed(2));
-    rq("r-sg-upper").setAttribute("transform", "rotate("+upperAngle+" 0 -110.05040624)");
-    rq("r-sg-seat").setAttribute("transform", "rotate("+(lowerAngle-upperAngle)+" 0 -65.25040624)");
+    var phase=u-1, rail=staygapSide.frame(staygapSide.cursor(phase));
+    var upperGreen=seg(u,1.20,1.23), lowerGreen=seg(u,1.47,1.50);
+    staygapSide.draw(rq("relay-rail"),rail);
+    const shoeY=460-rail.shoe/4;
+    rq("relay-rail").querySelector(".relay-lower-track").setAttribute("d", "M170 "+(shoeY-36)+"v54");
+    rq("relay-rail").querySelector(".signal").setAttribute("fill",upperGreen>.5?"#79ad52":"#be4557");
+    rq("r-sg-tagR").setAttribute("opacity",1-upperGreen);rq("r-sg-tagG").setAttribute("opacity",upperGreen);
+    rq("r-sg-tagG").querySelector("text").textContent=lowerGreen>.5?"앉기 가능":"걸터앉기 가능";
+    rq("r-crowd").setAttribute("opacity",(.95-.45*upperGreen-.35*lowerGreen).toFixed(2));
+    $("relayRailControls").hidden = i!==1 || fr>.84;
+    const mode=phase<.31?0:phase<.595?1:2;
+    $("relayRailControls").dataset.mode=mode;
+    $("relayUpper").textContent=mode===1?"위 버튼 · 기대기로":"위 버튼 · 걸터앉기";
+    $("relayLower").textContent="아래 버튼 · 앉기";
     var lean = seg(u,1.09,1.14)*(1-seg(u,1.23,1.26));
     var pressUpper=seg(u,1.23,1.25)*(1-seg(u,1.27,1.29));
     var pressLower=seg(u,1.50,1.52)*(1-seg(u,1.55,1.57));
     var sitK=.45*seg(u,1.35,1.40)+.55*seg(u,1.64,1.70);
-    walker(ACT.elder, PATH.elder, u, G, u>1.08?-1:0, {tilt:-7*lean,reach:Math.max(pressUpper,pressLower),reachAng:-20,sit:sitK,seatY:G-(.687815-.22*Math.cos(upperAngle*Math.PI/180)+.02)*160,seatWeight:seg(u,1.35,1.40),x:lerp(kf(PATH.elder,u),R.pole.x-.14*160-.22*Math.sin(upperAngle*Math.PI/180)*160,seg(u,1.35,1.40))});
+    const hingeX=R.pole.x+(rail.joints[0][0]-136.5)*.64;
+    const seatedX=hingeX+(rail.depth-79)*.16*.6;
+    walker(ACT.elder,PATH.elder,u,G,u>1.08?1:0,{tilt:-7*lean,reach:Math.max(pressUpper,pressLower),reachAng:-20,sit:sitK,
+      seatY:G-(rail.upper*.4+rail.lower*.6)*.16,seatWeight:seg(u,1.35,1.40),
+      x:lerp(kf(PATH.elder,u),seatedX,seg(u,1.35,1.40))});
     ACT.elder.g.setAttribute("opacity", seg(u,.8,.9).toFixed(2));
 
     /* ===== 03 FOLD MARK → STREET FOLD: 노점에서 스티커와 음식을 받고 → 골목 테이블로 → 테이블이 내려오고 → 음식을 연다 ===== */
@@ -554,24 +550,18 @@
     setT(C.baton, "translate3d(" + fx.toFixed(1) + "px," + (fy - bo * 0.22 * vh - 0.12 * vh).toFixed(1) + "px,0) scale(" + (0.6 + 0.6 * bo).toFixed(3) + ")", bo.toFixed(3));
 
     /* 01: 실제 3D 장면 (노점의 FOLD MARK → 커플 → 골목의 STREET FOLD) */
-    if (mode3) {
-      // 3D 모드: 2D 무대(길 · 사람 그림 · 초점 · 바통)는 아예 숨김
-      C.track.style.visibility = C.bg.style.visibility = "hidden"; C.veil.style.opacity = 0; C.baton.style.opacity = 0;
-      C3D.attach(R3.el); R3.on = true;
-      if (use3d) {
-        var u3 = clamp(uu / TR, 0, 1);
-        if (cur === SF_SEG) C3D.relay(u3, 9000 + u3 * 900); else C3D.relayTeam(cur, u3, 9000 + u3 * 900);
-      }
-      R3.el.style.opacity = 1;
-      R3.dim = R3.dim || (function () { var d = doc.createElement("div"); d.className = "r3d-dim"; d.innerHTML = '<span>3D 장면을 준비하는 중…</span>'; R3.el.appendChild(d); return d; })();
-      var dimV = use3d ? dip : 1; R3.dim.style.opacity = dimV.toFixed(3); R3.dim.classList.toggle("is-wait", !use3d);
-    } else {
-      C.track.style.visibility = C.bg.style.visibility = "";
-      if (R3.on) { R3.el.style.opacity = 0; R3.on = false; }
-    }
+    if (use3d) {
+      C3D.attach(R3.el);
+      var u3 = clamp(fr / 0.86, 0, 1);
+      if (i === SF_SEG) C3D.relay(u3, 9000 + u3 * 900); else C3D.relayTeam(i, i===1?fr:u3, 9000 + u3 * 900);
+      R3.el.style.opacity = (1 - seg(fr, 0.86, 0.97)).toFixed(3);
+      R3.on = true;
+      var behind = seg(fr, 0.86, 0.97);                     // 3D 가 보이는 동안 2D 초점 효과는 숨김
+      C.veil.style.opacity = (seg(s, 0.3, 0.8) * behind).toFixed(3); C.baton.style.opacity = (C.baton.style.opacity * behind).toFixed(3);
+    } else if (R3.on) { R3.el.style.opacity = 0; R3.on = false; }
 
     /* 영상 프레임이 준비된 제품이면 그 장면 위에 덮음 */
-    var sq = mode3 ? null : SEQ[i];
+    var sq = SEQ[i];
     if (sq) {
       var holdEnd = i < 3 ? 0.6 : 1, a2 = seg(fr, 0, holdEnd);
       var src = sq[Math.round(a2 * (sq.length - 1))];
@@ -624,42 +614,10 @@
   /* =========================================================
      7-2. 제품 고르기 — 지도에서 고르면 그 골목으로 내려가 제품을 가운데에
      ========================================================= */
-  var SEL = { stage: $("sStage"), h3d: $("s3d"), detail: $("sDetail"), list: $("sList"), mode: "pre", j: -1, target: -1, u: 0, keys: null, hot: -1, tu: 0, yaw: 0, vyaw: 0, drag: null, dragged: false, idleRot: 0 };
-  /* 동선 따라가기: 화면에 들어오면 01 → 02 → 03 → 04 로 카메라가 길을 따라 이동 (구간마다 무드보드 색 하나씩) */
-  var TOUR = { dur: 12, el: $("sTour"), txt: $("sTourTxt"), dot: $("sTourDot"), bar: $("sTourBar"), seg: -1 };
-  /* 동선 연출 중에는 스크롤을 잠금 — 끝나거나 '건너뛰기'를 눌러야 풀림 */
-  var LOCK = { on: false, y: 0 };
-  function lockKey(e) { if (LOCK.on && /^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End| |Spacebar)$/.test(e.key) && e.target === doc.body || (LOCK.on && /^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End)$/.test(e.key))) e.preventDefault(); }
-  function lockStop(e) { if (LOCK.on) e.preventDefault(); }
-  function lockHold() { if (LOCK.on && Math.abs(window.pageYOffset - LOCK.y) > 2) window.scrollTo(0, LOCK.y); }
-  addEventListener("wheel", lockStop, { passive: false });
-  addEventListener("touchmove", lockStop, { passive: false });
-  addEventListener("keydown", lockKey);
-  addEventListener("scroll", lockHold, { passive: true });
-  function scrollLock(on) {
-    if (on === LOCK.on) return;
-    LOCK.on = on;
-    if (on) {
-      var r = SEL.stage.getBoundingClientRect();
-      LOCK.y = Math.round(window.pageYOffset + r.top + (r.height - vh) / 2);   // 무대가 화면에 꽉 차게 맞추고 잠금
-      doc.documentElement.style.scrollBehavior = "auto"; window.scrollTo(0, LOCK.y); doc.documentElement.style.scrollBehavior = "";
-      doc.documentElement.classList.add("is-locked");
-    } else doc.documentElement.classList.remove("is-locked");
-  }
-  doc.addEventListener("click", function (e) { if (LOCK.on && e.target.closest && e.target.closest("a[href]")) { if (SEL.mode === "tour") tourEnd(); else scrollLock(false); } }, true);
-  function tourStart() {
-    if (!C3D.init()) return;
-    if (!reduced) scrollLock(true);
-    SEL.mode = "tour"; SEL.tu = reduced ? 1 : 0; TOUR.seg = -1; selShowDetail(false); SEL.stage.classList.remove("is-3d");
-    SEL.stage.classList.add("is-touring"); C3D.spotOn = 0;
-  }
-  function tourEnd() {
-    SEL.stage.classList.remove("is-touring");
-    scrollLock(false);
-    SEL.keys = C3D.backKeys(C3D.cameraKey(), overview()); SEL.target = -1; SEL.u = reduced ? 1 : 0; SEL.dur = 2.2; SEL.mode = "fly";
-  }
-  $("sTourSkip").addEventListener("click", function () { if (SEL.mode === "tour") tourEnd(); });
-  $("sReplay").addEventListener("click", function () { if (SEL.mode === "overview") tourStart(); });
+  var SEL = {stage:$("sStage"), h3d:$("s3d"), detail:$("sDetail"), list:$("sList"), mode:"overview", j:-1, hot:-1, yaw:0};
+  var island, software, hardware, replay=-1, lastIsland="";
+  $("sReplay").addEventListener("click", function(){ replay=0; });
+  SEL.detail.inert=true;
   var N_PROD = TXT.products.length;
   // 지도 위 이름표
   var selMarkers = TXT.products.map(function (p, j) {
@@ -688,7 +646,7 @@
     $("sDots").appendChild(b); return b;
   });
   /* 지도 전체가 버튼: 마우스가 가장 가까운 제품을 밝히고, 지도 어디를 눌러도 그 제품으로 들어감 */
-  SEL.mpos = []; var INV = { t: 0, idle: false };
+  SEL.mpos = []; 
   // v4.5.1: 지도 전체가 버튼이던 것을 없앰 — 이름표(와 그 점 바로 주변 36px)만 반응
   function nearestMk(e) {
     var r = SEL.stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, best = -1, bd = 1e9;
@@ -702,14 +660,14 @@
   // 끌면 지도가 돌고, 그냥 누르면 가장 가까운 제품으로 들어감
   SEL.h3d.addEventListener("pointerdown", function (e) {
     if (SEL.mode !== "overview") return;
-    SEL.drag = { x: e.clientX, t: performance.now() }; SEL.dragged = false; SEL.vyaw = 0;
+    SEL.drag = { x: e.clientX, start:e.clientX }; SEL.dragged = false; SEL.vyaw = 0;
     try { SEL.h3d.setPointerCapture(e.pointerId); } catch (er) {}
   });
   SEL.h3d.addEventListener("pointermove", function (e) {
     if (SEL.mode !== "overview") return; SEL.idleRot = 0;
     if (SEL.drag) {
       var dx = e.clientX - SEL.drag.x; SEL.drag.x = e.clientX;
-      if (Math.abs(dx) > 0 || SEL.dragged) { SEL.yaw -= dx * 0.0045; SEL.vyaw = -dx * 0.0045; if (Math.abs(dx) > 2) SEL.dragged = true; }
+      if (Math.abs(dx) > 0 || SEL.dragged) { SEL.yaw -= dx * 0.0045; SEL.vyaw = -dx * 0.0045; if (Math.abs(e.clientX-SEL.drag.start) > 4) SEL.dragged = true; }
       SEL.h3d.style.cursor = "grabbing"; return;
     }
     var j = nearestMk(e); if (j >= 0) hotIn(j); else if (SEL.hot >= 0) hotOut(); SEL.h3d.style.cursor = j >= 0 ? "pointer" : "grab";
@@ -720,7 +678,7 @@
   // 마우스가 화면 안에 있으면 지도가 저절로 돌지 않음 (누르려는 이름표가 미끄러져 가지 않게)
   SEL.stage.addEventListener("pointerenter", function () { SEL.inside = true; });
   SEL.stage.addEventListener("pointerleave", function () { SEL.inside = false; });
-  SEL.h3d.addEventListener("click", function (e) { if (SEL.mode !== "overview" || SEL.dragged) { SEL.dragged = false; return; } var j = nearestMk(e); if (j >= 0) selGo(j); });
+  SEL.h3d.addEventListener("click", function (e) { if (SEL.mode !== "overview" || SEL.dragged) { SEL.dragged = false; return; } var rect=SEL.h3d.getBoundingClientRect(); var j=island ? island.pick(e.clientX-rect.left,e.clientY-rect.top,rect.width,rect.height) : -1; if(j<0)j=nearestMk(e); if(j>=0)selGo(j); });
   var POP = { el: $("sPop"), no: $("sPopNo"), name: $("sPopName"), line: $("sPopLine"), go: $("sPopGo") };
   if (POP.go) POP.go.addEventListener("click", function () { selGo(SEL.hot >= 0 ? SEL.hot : (POP.j >= 0 ? POP.j : 0)); });
   if (POP.el) { POP.el.addEventListener("mouseenter", function () { clearTimeout(hotTimer); }); POP.el.addEventListener("mouseleave", hotOut); }
@@ -741,110 +699,88 @@
     var p = TXT.products[j];
     $("sNo").textContent = p.no; $("sCount").textContent = "0" + (j + 1) + " / 0" + N_PROD;
     $("sName").textContent = p.name; $("sLine").textContent = p.line; $("sIn").textContent = p.input; $("sAi").textContent = p.ai; $("sAct").textContent = p.act;
-    $("sGo").href = p.page; $("sImg").src = p.card; $("sImg").alt = p.name;
+    $("sGo").href = p.page; $("sImg").src = p.preview || p.card; $("sImg").alt = p.name;
     // 3D 모델이 있는 제품은 잡고 돌려 볼 수 있는 3D 로 (없으면 사진)
+    SEL.viewerTried=!!(hardware && C3D.productRoot(p.model));
     var v3 = !!(p.model && C3D.viewer && C3D.viewer($("sView"), p.model));
     $("sImgWrap").classList.toggle("is-3d", v3);
     selDots.forEach(function (d, k) { d.classList.toggle("is-on", k === j); });
   }
-  // 지도 360° 돌리기: 내려다보는 카메라를 가운데(바라보는 점)를 축으로 돌림
-  function rotKey(k, yaw) {
-    if (!yaw) return k;
-    var d = k.pos.clone().sub(k.look), c = Math.cos(yaw), sn = Math.sin(yaw), p = k.look.clone();
-    p.x += d.x * c + d.z * sn; p.y += d.y; p.z += -d.x * sn + d.z * c;
-    return { pos: p, look: k.look.clone(), up: k.up.clone(), fov: k.fov };
-  }
-  function overview() {
-    var sz = C3D.size(), name = sz[0] + "x" + sz[1];
-    if (SEL.ovName !== name) {
-      var lr = SEL.list.getBoundingClientRect(), sr = SEL.stage.getBoundingClientRect(), hh = $("hd").offsetHeight;
-      var r = mobile ? { x0: 40, x1: sz[0] - 40, y0: hh + 130, y1: (lr.top - sr.top) - 90 }
-                     : { x0: sz[0] * 0.2, x1: sz[0] * 0.8, y0: hh + 170, y1: (lr.top - sr.top) - 150 };
-      SEL.ov = C3D.overviewFit(r, mobile); SEL.ovName = name;
-    }
-    return rotKey(SEL.ov, SEL.yaw);
-  }
   function selShowDetail(on) {
     if (!on && C3D.viewerHide) C3D.viewerHide();
-    SEL.detail.classList.toggle("is-on", on); SEL.detail.setAttribute("aria-hidden", on ? "false" : "true");
+    SEL.detail.inert=!on; SEL.detail.classList.toggle("is-on", on); SEL.detail.setAttribute("aria-hidden", on ? "false" : "true");
     SEL.stage.classList.toggle("is-blur", on);
   }
   function selGo(j) {
-    if (!C3D.init()) { location.href = TXT.products[j].page; return; }   // 3D가 안 되는 기기: 바로 제품 페이지로
-    if (SEL.mode === "fly") return;
-    if (SEL.mode === "tour") { SEL.stage.classList.remove("is-touring"); scrollLock(false); }
-    var from = SEL.mode === "overview" ? overview() : C3D.cameraKey();
-    SEL.keys = C3D.flyKeys(from, j); SEL.target = j; SEL.u = 0; SEL.dur = SEL.mode === "overview" ? CFG.selectFly : CFG.selectFly * 0.8;
-    SEL.mode = "fly"; selShowDetail(false); SEL.stage.classList.add("is-3d"); C3D.spotOn = j + 1; if (POP.el) POP.el.classList.remove("is-on");
-    if (reduced) SEL.u = 1;
+    replay=-1; selHot(-1);
+    SEL.j=j; SEL.mode="detail"; SEL.stage.classList.add("is-3d");
+    selFill(j); selShowDetail(true);
+    SEL.list.inert=true; $("sMarkers").inert=true;
+    $("sGo").focus({preventScroll:true});
   }
   function selBack() {
-    if (SEL.mode !== "detail") return;
-    SEL.keys = C3D.backKeys(C3D.cameraKey(), overview()); SEL.target = -1; SEL.u = 0; SEL.dur = CFG.selectFly * 0.8;
-    SEL.mode = "fly"; selShowDetail(false);
-    if (reduced) SEL.u = 1;
+    const previous=SEL.j;
+    SEL.mode="overview"; SEL.j=-1; selShowDetail(false); SEL.stage.classList.remove("is-3d");
+    SEL.list.inert=false; $("sMarkers").inert=false; lastIsland="";
+    selItems[previous].focus({preventScroll:true});
   }
   function selStep(d) { if (SEL.mode === "detail") selGo((SEL.j + d + N_PROD) % N_PROD); }
+  let backgroundPress = null;
+  function onBackground(e) {
+    if (e.target.closest(".sel-panel, #sImg, a, button")) return false;
+    return !e.target.closest("#sView") || !C3D.viewerHit || !C3D.viewerHit(e.clientX, e.clientY);
+  }
+  SEL.detail.addEventListener("pointerdown", function (e) {
+    backgroundPress = e.isPrimary && e.button === 0 && onBackground(e)
+      ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+  }, true);
+  SEL.detail.addEventListener("pointermove", function (e) {
+    if (backgroundPress && (backgroundPress.id !== e.pointerId ||
+        Math.hypot(e.clientX - backgroundPress.x, e.clientY - backgroundPress.y) > 6)) backgroundPress = null;
+  });
+  SEL.detail.addEventListener("pointercancel", function () { backgroundPress = null; });
+  SEL.detail.addEventListener("click", function (e) {
+    const press = backgroundPress;
+    backgroundPress = null;
+    if (SEL.mode === "detail" && press && Math.hypot(e.clientX - press.x, e.clientY - press.y) <= 6 && onBackground(e)) selBack();
+  });
   $("sBack").addEventListener("click", selBack);
   $("sPrev").addEventListener("click", function () { selStep(-1); });
   $("sNext").addEventListener("click", function () { selStep(1); });
   doc.addEventListener("keydown", function (e) {
-    if (SEL.mode !== "detail") return;
+    if (SEL.mode !== "detail" || !SEL.stage.contains(document.activeElement)) return;
     if (e.key === "Escape") selBack(); else if (e.key === "ArrowRight") selStep(1); else if (e.key === "ArrowLeft") selStep(-1);
   });
   function selFrame(dt, inView) {
-    if (!inView) return;
-    var tLive = CFG.timelapseSpeed + idle.t + 900;
-    if (!C3D.init()) {      // 3D가 안 될 때: 2D 지도 + 목록만
-      mapS.render({ t: tLive, org: 1, tint: 1, floor: 1, dark: 0, tables: 1, zoom: 0.9, fx: 700, fy: 470 });
-      return;
-    }
-    C3D.attach(SEL.h3d); SEL.h3d.style.opacity = 1; C3D.setLook({ dark: 0, floor: 1, tables: 1 });
-    var SF = C3D.routeStopFrac();
-    if (SEL.mode === "pre") {                       // 화면에 반 이상 들어오면 동선 따라가기 시작
-      var r0 = SEL.stage.getBoundingClientRect();
-      C3D.routeSet(0, false); C3D.render(C3D.tourKey(0), tLive);
-      if (r0.top < vh * 0.35 && r0.bottom > vh * 0.65) tourStart();
-      return;
-    }
-    if (SEL.mode === "tour") {
-      SEL.tu = clamp(SEL.tu + dt / TOUR.dur, 0, 1);
-      if (TOUR.bar) TOUR.bar.style.transform = "scaleX(" + SEL.tu.toFixed(3) + ")";
-      var tp = inOut(SEL.tu);
-      C3D.routeSet(tp, true); C3D.render(C3D.tourKey(tp), tLive);
-      var si = 0; while (si < 2 && tp > SF[si + 1]) si++;
-      if (si !== TOUR.seg) {
-        TOUR.seg = si; TOUR.dot.style.background = C3D.routeColors[si];
-        TOUR.txt.textContent = TXT.products[si].no.replace("PRODUCT ", "") + " " + TXT.products[si].name + "  →  " + TXT.products[si + 1].no.replace("PRODUCT ", "") + " " + TXT.products[si + 1].name;
+    if (!inView) {lastIsland="";return;}
+    if (hardware===undefined) hardware=!!C3D.init();
+    if (SEL.mode==="detail") {
+      if(hardware){
+        C3D.attach(SEL.h3d); C3D.setLook({dark:0,floor:1,tables:1});
+        C3D.render(C3D.eyeKey(SEL.j),CFG.timelapseSpeed+idle.t);
+        if(C3D.productRoot(TXT.products[SEL.j].model) && !SEL.viewerTried) selFill(SEL.j);
       }
-      MAP.spots.forEach(function (sp, j) {
-        var pt = C3D.project(sp[0], 22, sp[1]), on = clamp((tp - SF[j] + 0.02) / 0.03, 0, 1);
-        selMarkers[j].style.transform = "translate3d(" + pt[0].toFixed(1) + "px," + pt[1].toFixed(1) + "px,0) scale(" + (0.85 + 0.15 * on).toFixed(3) + ")";
-        selMarkers[j].style.opacity = on.toFixed(3);
-      });
-      if (SEL.tu >= 1) tourEnd();
       return;
     }
-    C3D.routeSet(1, false);
-    if (SEL.mode === "overview") {
-      if (!SEL.drag) { SEL.yaw += SEL.vyaw; SEL.vyaw *= Math.pow(0.04, dt); SEL.idleRot = Math.min(1, SEL.idleRot + dt * 0.25); if (!reduced && !SEL.inside && SEL.hot < 0) SEL.yaw += dt * 0.035 * SEL.idleRot; }
-      C3D.render(overview(), tLive);
-      // 이름표끼리 겹치면 아래쪽 것을 살짝 내려 겹치지 않게 (점 위치는 그대로)
-      var pts = MAP.spots.map(function (sp, j) { var pt = C3D.project(sp[0], 22, sp[1]); SEL.mpos[j] = pt; return { j: j, x: pt[0], y: pt[1], w: selMarkers[j].offsetWidth || 150, h: (selMarkers[j].offsetHeight || 36) + 6 }; });
-      pts.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (a, i, arr) {
-        for (var k = 0; k < i; k++) { var b = arr[k]; if (Math.abs(a.x - b.x) < Math.max(a.w, b.w) && Math.abs(a.y - b.y) < b.h) a.y = b.y + b.h; }
-      });
-      pts.forEach(function (a) { selMarkers[a.j].style.transform = "translate3d(" + a.x.toFixed(1) + "px," + a.y.toFixed(1) + "px,0)"; });
-      return;
+    if(!island){
+      island=window.createProductIsland(window.THREE,TXT.products,name=>hardware && C3D.productRoot(name));
+      if(!hardware){var canvas=doc.createElement("canvas");SEL.h3d.appendChild(canvas);software=window.islandCanvasRenderer(window.THREE,canvas);}
     }
-    if (SEL.mode === "detail") { C3D.render(C3D.eyeKey(SEL.j), tLive); return; }
-    // 날아가는 중
-    SEL.u = clamp(SEL.u + dt / SEL.dur, 0, 1);
-    C3D.render(C3D.path(SEL.keys, inOut(SEL.u)), tLive);
-    if (SEL.u >= 1) {
-      if (SEL.target >= 0) { SEL.j = SEL.target; selFill(SEL.j); SEL.mode = "detail"; selShowDetail(true); }
-      else { SEL.mode = "overview"; SEL.j = -1; SEL.stage.classList.remove("is-3d"); C3D.spotOn = 0; selHot(SEL.hot); selMarkers.forEach(function (m) { m.style.opacity = ""; }); }
-    }
+    if(hardware) C3D.attach(SEL.h3d);
+    SEL.h3d.style.opacity=1;
+    var w=SEL.h3d.clientWidth,h=SEL.h3d.clientHeight;
+    if(!w||!h)return;
+    if(replay>=0){replay+=dt/7;if(replay>1)replay=-1;}
+    var state=[w,h,SEL.yaw,replay,island.revision,hardware && [1,2,3,4].map(i=>!!C3D.productRoot("0"+i+"_bld")).join(""),hardware && TXT.products.map(p=>!!C3D.productRoot(p.model)).join("")].join("/");
+    if(lastIsland===state)return;
+    lastIsland=state;
+    var pts=island.render(hardware?C3D._renderer():software,w,h,SEL.yaw,replay);
+    var offset=SEL.h3d.offsetTop;
+    pts.forEach(function(pt,j){
+      var b=selMarkers[j];SEL.mpos[j]=[pt[0],pt[1]+offset];
+      var x=clamp(pt[0],b.offsetWidth/2+3,w-b.offsetWidth/2-3);
+      b.style.transform="translate3d("+x+"px,"+(pt[1]+offset-12)+"px,0)";
+    });
   }
 
   /* =========================================================
@@ -863,7 +799,7 @@
   var RENDER = { A: sceneA, C: sceneC, D: sceneD };
   var shown = { A: -1, C: -1, D: -1 };
   function applyScene(key, p) {
-    if (!reduced) { RENDER[key](p); return; }
+    if (!reduced || key === "A") { RENDER[key](p); return; }
     var q = QUANT[key](p);
     if (q === shown[key]) return;
     var stage = scenes[key].el.querySelector(".stage");
@@ -878,7 +814,11 @@
      9. 매 프레임
      ========================================================= */
   var cur = window.pageYOffset, last = -1, dirty = true;
-  var hd = $("hd"), toTop = $("toTop");
+  var hd = $("hd");
+  var selectorVisible = true, selectorWasVisible = false;
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (entries) { selectorVisible = entries[0].isIntersecting; }).observe(SEL.stage);
+  }
   var lastTime = 0;
   function frame(now) {
     var target = window.pageYOffset;
@@ -894,16 +834,17 @@
         if (cur + vh < sc.top - vh * 0.5 || cur > sc.top + sc.h + vh * 0.5) return; // 화면 밖이면 쉬기
         applyScene(key, progress(sc, cur));
       });
+
       sceneB(cur);
-      var hy = target + (hd.offsetHeight / 2);
-      hd.classList.toggle("is-dark", hy > outroTop && hy < outroBottom);
-      toTop.classList.toggle("is-on", target > vh * 1.2);
+
     }
     // 골목에 도착한 뒤에는 스크롤을 멈춰도 사람들이 계속 걸음
+
     if (A.live && !reduced && cur >= scenes.A.top && cur <= scenes.A.top + scenes.A.h) render3d("A", 1, 1);
-    if (cur > outroTop - vh * 2.2) outroNight();
-    var sr = SEL.stage.getBoundingClientRect();
-    selFrame(dtms / 1000, sr.bottom > 0 && sr.top < vh);
+
+    if (selectorVisible) selFrame(dtms / 1000, true);
+    else if (selectorWasVisible) selFrame(dtms / 1000, false);
+    selectorWasVisible = selectorVisible;
     requestAnimationFrame(frame);
   }
 
@@ -935,7 +876,6 @@
   /* v5: 발표용 바로가기 — 주소 끝에 ?view=streetfold (또는 floway · staygap · naviar · relay · select · world) 를 붙이면 그 장면에서 시작. &mode=3d 를 더하면 3D 릴레이로 */
   function goView() {
     var m = /[?&]view=([a-z0-9-]+)/i.exec(location.search); if (!m) return;
-    layout(true);
     var md = /[?&]mode=(2d|3d)/i.exec(location.search), v = m[1].toLowerCase(), y = null;
     if (md && relay3dCan()) { var bt = doc.querySelector('[data-rmode="' + md[1].toLowerCase() + '"]'); if (bt) bt.click(); }
     var seg = { floway: 0, staygap: 1, "stay-gap": 1, streetfold: 2, "street-fold": 2, sf: 2, naviar: 3 }[v];
@@ -946,7 +886,7 @@
     if (y != null) { doc.documentElement.style.scrollBehavior = "auto"; window.scrollTo(0, Math.round(y)); doc.documentElement.style.scrollBehavior = ""; }
   }
   window.addEventListener("load", function () { setTimeout(goView, 350); });
-  window.addEventListener("load", function () { layout(true); setTimeout(function () { if (C3D && C3D.preload) C3D.preload(); }, 900); });
+  window.addEventListener("load", function () { layout(true); });
   layout(true);
   requestAnimationFrame(frame);
 })();
