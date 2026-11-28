@@ -18,7 +18,7 @@
    cancelAnimationFrame(request);mode=detail;
    const start=cursor,end=stops[mode],began=performance.now(),duration=Math.max(180,Math.abs(end-start)*13);
    function step(now){
-     const t=matchMedia('(prefers-reduced-motion: reduce)').matches?1:Math.min(1,(now-began)/duration);
+     const t=matchMedia('(prefers-reduced-motion: reduce)').matches?1:Math.max(0,Math.min(1,(now-began)/duration));
      cursor=start+(end-start)*t;paint();
      if(t<1)request=requestAnimationFrame(step);
    }
