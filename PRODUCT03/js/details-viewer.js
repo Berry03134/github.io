@@ -37,11 +37,32 @@ renderer=new T.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio
 const rail=await loadStaygapRail(T);rig=rail.rig;scene=new T.Scene();scene.add(rig);camera=new T.PerspectiveCamera(32,1,.01,50);scene.add(new T.HemisphereLight(0xffffff,0x77715f,3));const key=new T.DirectionalLight(0xffffff,4);key.position.set(3,5,4);scene.add(key);const fill=new T.DirectionalLight(0xffedca,2);fill.position.set(-3,2,-2);scene.add(fill);
 const studio=new T.Scene();studio.background=new T.Color(0xdeddd3);const wall=new T.Mesh(new T.PlaneGeometry(10,10),new T.MeshBasicMaterial({color:0xffffff,side:T.DoubleSide}));wall.position.set(0,3,3);studio.add(wall);const env=new T.PMREMGenerator(renderer);scene.environment=env.fromScene(studio,.04).texture;env.dispose();
 const caps=[];rig.traverse(o=>{if(o.isMesh&&o.name.startsWith('press_')){o.geometry.computeBoundingBox();caps.push(o);}});
+const hintCaps = ['upper', 'lower'].map(side => caps.filter(cap => cap.name.includes(side)));
+const candidatePoint = new T.Vector3();
+const point = new T.Vector3();
 const hints=[1,2].map(i=>{const b=document.createElement('button');b.className='joint-tap-hint';b.type='button';b.innerHTML='<i aria-hidden="true"></i><span>여기를 톡</span>';b.setAttribute('aria-label',i===1?(currentMode===1?'위 버튼 · 기대기로 돌아가기':'위 버튼 · 걸터앉기'):'아래 관절: 앉기');b.addEventListener('pointerdown',e=>e.stopPropagation());b.addEventListener('click',e=>{e.stopPropagation();activate(i);});host.append(b);return b;});
 let down=false,moved=false,x0=0,y0=0,last=0;const ray=new T.Raycaster(),pointer=new T.Vector2();host.addEventListener('pointerdown',e=>{if(e.target!==renderer.domElement)return;down=true;moved=false;x0=last=e.clientX;y0=e.clientY;host.setPointerCapture(e.pointerId);});host.addEventListener('pointermove',e=>{if(!down)return;if(Math.hypot(e.clientX-x0,e.clientY-y0)>6)moved=true;if(moved)yaw-=(e.clientX-last)*.01;last=e.clientX;});host.addEventListener('pointerup',e=>{if(!down)return;down=false;if(moved)return;const r=host.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2);ray.setFromCamera(pointer,camera);let cap=ray.intersectObjects(caps,false)[0]?.object;if(!cap){let best=24;caps.forEach(c=>{const v=c.geometry.boundingBox.getCenter(new T.Vector3()).applyMatrix4(c.matrixWorld).project(camera),d=Math.hypot((v.x+1)*r.width/2+r.left-e.clientX,(1-v.y)*r.height/2+r.top-e.clientY);if(d<best){best=d;cap=c;}});}if(cap)activate(cap.name.includes('upper')?1:2);});host.addEventListener('pointercancel',()=>down=false);
 new ResizeObserver(resize).observe(host);ready=true;position=currentMode;show(desired3d);
-function frame(now){requestAnimationFrame(frame);if(!visible)return;const t=reduced.matches?1:Math.min(1,(now-started)/480),ease=t*t*(3-2*t);position=started?startPosition+(currentMode-startPosition)*ease:currentMode;rail.pose(position);camera.position.set(Math.sin(yaw)*3.5,1.15,Math.cos(yaw)*3.5);camera.lookAt(0,.9,0);renderer.render(scene,camera);const r=host.getBoundingClientRect();
-hints.forEach((hint,j)=>{let best=Infinity,point;caps.filter(c=>c.name.includes(j===0?'upper':'lower')).forEach(c=>{const p=c.geometry.boundingBox.getCenter(new T.Vector3()).applyMatrix4(c.matrixWorld),d=p.distanceToSquared(camera.position);if(d<best){best=d;point=p;}});point.project(camera);hint.hidden=Math.abs(point.x)>1||Math.abs(point.y)>1||Math.abs(point.z)>1;hint.style.left=(point.x+1)*r.width/2+'px';hint.style.top=(1-point.y)*r.height/2+'px';hint.classList.toggle('hint-left',j===1);});}requestAnimationFrame(frame);
+let inViewport = true;
+if ('IntersectionObserver' in window) {
+  const viewportObserver = new IntersectionObserver(entries => {
+    inViewport = entries[entries.length - 1].isIntersecting;
+  });
+  viewportObserver.observe(host);
+}
+function frame(now){requestAnimationFrame(frame);if(!visible)return;const t=reduced.matches?1:Math.min(1,(now-started)/480),ease=t*t*(3-2*t);position=started?startPosition+(currentMode-startPosition)*ease:currentMode;
+if (!inViewport) return;
+rail.pose(position);camera.position.set(Math.sin(yaw)*3.5,1.15,Math.cos(yaw)*3.5);camera.lookAt(0,.9,0);renderer.render(scene,camera);const r=host.getBoundingClientRect();
+hints.forEach((hint,j)=>{let best = Infinity;
+for (const cap of hintCaps[j]) {
+  cap.geometry.boundingBox.getCenter(candidatePoint).applyMatrix4(cap.matrixWorld);
+  const distance = candidatePoint.distanceToSquared(camera.position);
+  if (distance < best) {
+    best = distance;
+    point.copy(candidatePoint);
+  }
+}
+point.project(camera);hint.hidden=Math.abs(point.x)>1||Math.abs(point.y)>1||Math.abs(point.z)>1;hint.style.left=(point.x+1)*r.width/2+'px';hint.style.top=(1-point.y)*r.height/2+'px';hint.classList.toggle('hint-left',j===1);});}requestAnimationFrame(frame);
 }catch(e){show(false);status.textContent='이 환경에서는 3D를 표시할 수 없어 구조 그림으로 보여드립니다.';if(renderer){renderer.dispose();renderer.domElement.remove();}console.warn('STAY GAP detail 3D:',e);}finally{loading=false;}}
 function resize(){if(!renderer||!camera||!visible)return;const r=host.getBoundingClientRect();if(!r.width||!r.height)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
 function chooseView(on){desired3d=on;if(!on)show(false);else if(ready)show(true);else init();}

@@ -21,8 +21,12 @@
         v.addEventListener("seeked", function () { c.busy = false; }); v.addEventListener("loadeddata", function () { c.ok = true; });
       });
     }
-    function nextOf(c) { return cuts.filter(function (d) { return Math.abs(d.a - c.b) < 1e-4; })[0]; }
-    function prevOf(c) { return cuts.filter(function (d) { return Math.abs(d.b - c.a) < 1e-4; })[0]; }
+    var neighbors = cuts.map(function (cut) {
+      return {
+        previous: cuts.some(function (other) { return Math.abs(other.b - cut.a) < 1e-4; }),
+        next: cuts.some(function (other) { return Math.abs(other.a - cut.b) < 1e-4; })
+      };
+    });
     return {
       update: function (p, host) {
         if (!cuts.length) return false;
@@ -32,8 +36,8 @@
           var on = p >= c.a - FADE && p < c.b + FADE, op = 0;
           if (on) {
             op = 1;
-            if (!prevOf(c) && c.a > 0) op = Math.min(op, (p - (c.a - FADE)) / (FADE * 2));     // 앞이 3D 면 서서히 나타남
-            if (!nextOf(c) && c.b < 1) op = Math.min(op, ((c.b + FADE) - p) / (FADE * 2));     // 뒤가 3D 면 서서히 사라짐
+            if (!neighbors[i].previous && c.a > 0) op = Math.min(op, (p - (c.a - FADE)) / (FADE * 2));     // 앞이 3D 면 서서히 나타남
+            if (!neighbors[i].next && c.b < 1) op = Math.min(op, ((c.b + FADE) - p) / (FADE * 2));     // 뒤가 3D 면 서서히 사라짐
             op = Math.max(0, Math.min(1, op)); if (op >= .999 && p >= c.a && p < c.b) full = true;
             var k = Math.max(0, Math.min(1, (p - c.a) / (c.b - c.a))), t = c.from + (c.to - c.from) * k, v = c.v;
             if (v.preload !== "auto") v.preload = "auto";
